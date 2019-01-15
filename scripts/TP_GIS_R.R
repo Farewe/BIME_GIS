@@ -9,6 +9,8 @@ iucn_rg <- readOGR("./data/IUCN data/CAUDATA.shp")
 iucn_rg
 
 summary(iucn_rg)
+iucn_rg$binomial
+length(unique(iucn_rg$binomial))
 
 plot(iucn_rg)
 
@@ -40,6 +42,7 @@ continents <- st_read("./data/NaturalEarth data/ne_50m_coastline.shp")
 
 plot(continents[1], col = grey(.5),
      reset = FALSE, graticule = TRUE, axes = TRUE)
+
 plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"), 
              "family"], add = TRUE)
 
@@ -49,6 +52,7 @@ library(ggplot2)
 ggplot() +
   geom_sf(data = continents) +
   geom_sf(data = iucn_sf, aes(fill = family))
+?geom_sf
 
 
 # 2.3
@@ -60,6 +64,9 @@ plot(jan)
 minValue(jan)
 maxValue(jan)
 
+paste0("./data/Worldclim data/", list.files("./data/WorldClim data/"))
+
+
 
 worldclim <- stack(paste0("./data/WorldClim data/", 
                           list.files("./data/WorldClim data/")))
@@ -70,10 +77,12 @@ plot(MAT)
 # 3.1 
 iucn_sf <- iucn_sf[which(iucn_sf$presence == 1), ]
 iucn_sf <- iucn_sf[which(iucn_sf$origin == 1), ]
+# = la même chose que :
+iucn_sf <- iucn_sf[which(iucn_sf$presence == 1 & iucn_sf$origin == 1), ]
 
 
-plyr::count(iucn_sf$binomial)
-plot(iucn_sf[iucn_sf$binomial == "Ambystoma laterale", 2])
+# plyr::count(iucn_sf$binomial)
+# plot(iucn_sf[iucn_sf$binomial == "Ambystoma laterale", 2])
 
 # 3.2
 MAT <- aggregate(MAT,
