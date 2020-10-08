@@ -1,12 +1,16 @@
 
 
-# 2.1
-# Avec le package rgdal
+# Etape 2 : Lecture des données sous R
+## 2.1 Données vectorielles : polygones de distribution d’espèces
+### 2.1.1 Avec le package sp
+```{r}
 library(rgdal)
 library(raster)
 iucn_rg <- readOGR("./data/IUCN data/CAUDATA.shp")
+
 # Résumé de l'objet
 iucn_rg
+```
 
 summary(iucn_rg)
 iucn_rg$binomial
@@ -117,10 +121,10 @@ continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0
 
 library(tmap)
 richness.map <- tm_shape(richness.laea) +
-                tm_raster() 
+  tm_raster() 
 
 continents.map <- tm_shape(continents.laea) +
-                  tm_lines()
+  tm_lines()
 
 
 richness.map + continents.map 

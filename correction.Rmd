@@ -1,0 +1,254 @@
+---
+title: "UE BIME - TP SIG sous R"
+author: "Boris Leroy, UMR BOREA, Muséum National d'Histoire Naturelle"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+# Etape 2 : Lecture des données sous R
+## 2.1 Données vectorielles : polygones de distribution d’espèces
+### 2.1.1 Avec le package sp
+```{r}
+library(rgdal)
+library(raster)
+iucn_rg <- readOGR("./data/CAUDATA.shp")
+
+# Résumé de l'objet
+iucn_rg
+
+# Table attributaire
+head(iucn_rg)
+```
+
+
+Questions :
+
+-	Quel est le système de coordonnées ?
+
+**WGS 84**
+
+
+
+
+-	Combien y a-t-il de polygones ?
+
+**742**
+
+
+
+
+-	Combien y a-t-il d’espèces ?
+
+```{r}
+# Certains noms d'espèces sont présents plusieurs fois :
+iucn_rg$binomial[1:25] # Affichons uniquement les 25 premiers éléments
+
+# On regarde donc le nombre d'éléments uniques :
+length(unique(iucn_rg$binomial))
+```
+
+**Il y a 607 espèces.** 
+
+
+
+
+-	Quelle est la famille la plus diversifiée d’urodèles ?
+
+```{r}
+summary(as.factor(iucn_rg$family))
+```
+
+**Les salamandridae.**
+
+-	Où se trouvent les espèces d’amphibiens urodèles ?
+plot(iucn_rg)
+
+
+
+### 2.1.2 Avec le package sf
+
+```{r}
+library(sf)
+
+iucn_sf <- st_read("./data/CAUDATA.shp")
+iucn_sf
+plot(iucn_sf["family"])
+plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"), 
+             "family"])
+plot(iucn_sf[which(iucn_sf$family == "SALAMANDRIDAE"), 
+             "family"])
+plot(iucn_sf[which(iucn_sf$family == "AMBYSTOMATIDAE"), 
+             "family"])
+plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), 
+             "family"])
+```
+
+-	Comment sont réparties géographiquement les familles majoritaires d’urodèles ?
+
+**Les Plethodontidae et Ambystomatidae sont des familles néarctiques (Amérique du Nord). Les Salamandridae sont holarctiques (hémisphère nord en entier). Les Hynobiidae sont plutôt paléarctiques à orientales (Europe-Asie).**
+
+### 2.2 Données vectorielles : limites des continents
+
+```{r}
+continents <- st_read("./data/ne_50m_coastline.shp")
+
+plot(continents[1], col = grey(.5),
+     reset = FALSE, graticule = TRUE, axes = TRUE)
+
+plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"), 
+             "family"], add = TRUE)
+```
+
+```{r}
+library(ggplot2)
+ggplot() +
+  geom_sf(data = continents) +
+  geom_sf(data = iucn_sf, aes(fill = family))
+```
+
+### 2.3 Données raster : climatologies WorldClim
+
+```{r}
+library(raster)
+jan <- raster("./data/WorldClim data/wc2.1_10m_tavg_01.tif")
+jan
+```
+
+-	Quelle est la résolution du raster ?
+
+**0.167°**
+
+- Quel est le système de coordonnées ?
+
+**WGS 84**
+
+-	Quelle sont les températures moyennes de janvier les plus élevées et les plus froides sur la Terre, et où sont-elles situées ?
+
+```{r}
+minValue(jan)
+maxValue(jan)
+plot(jan)
+```
+
+**-45°C et 34°C sont les moyennes mensuelles les plus froides et élevées respectivement. Elles sont localisées en Sibérie pour la première, et dans les zones tropicales pour la seconde.**
+
+
+
+Question : 
+
+-	Calculez et affichez la moyenne annuelle des températures.
+
+```{r}
+worldclim <- stack(paste0("./data/WorldClim data/", list.files("./data/WorldClim data/")))
+MAT <- mean(worldclim, na.rm = T)
+plot(MAT)
+```
+
+
+# Etape 3 : analyse biogéographique de la diversité d’urodèles
+## 3.1 Distributions d’urodèles natives et non éteintes
+```{r}
+iucn_sf <- iucn_sf[which(iucn_sf$presence == 1), ]
+iucn_sf <- iucn_sf[which(iucn_sf$origin == 1), ]
+# = la même chose que :
+iucn_sf <- iucn_sf[which(iucn_sf$presence == 1 & iucn_sf$origin == 1), ]
+
+iucn_sf[which(duplicated(iucn_sf$binomial)), ]
+```
+
+
+## 3.2 Création d’un raster pour la richesse spécifique
+
+```{r}
+# On utilisera comme base de calcul le
+# raster de température moyenne annuelle agrégé par facteur 6
+MAT <- aggregate(MAT,
+                 fact = 6)
+```
+
+
+## 3.3 Calcul de la richesse spécifique
+
+```{r}
+pa.stack <- stack()
+for(sp in levels(as.factor(iucn_sf$binomial)))
+{
+ # We rasterize the polygons of the current species into values of 1
+ a <- try(pa.stack <- addLayer(pa.stack,
+                      rasterize(iucn_sf[iucn_sf$binomial == sp, ],
+                                MAT, 
+                                field = "binomial", 
+                                fun = function(x, ...) 1)))
+  if("try-error" %in% class(a)) 
+  {
+    print(sp)
+  }
+
+ 
+}
+# After the loop, we sum all presences to obtain the species richness
+b <- sum(pa.stack, na.rm = T)
+plot(b)
+
+
+ggplot() +
+  geom_sf(data = continents, col = "grey") +
+  geom_sf(data = iucn_sf[iucn_sf$binomial == sp, ],
+          col = "black")
+```
+
+```{r}
+
+iucn_sf <- iucn_sf[-which(iucn_sf$binomial == "Afghanodon mustersi"), ]
+iucn_sf$binomial <- as.factor(iucn_sf$binomial)
+iucn_sp <- as_Spatial(iucn_sf)
+richness <- rasterize(iucn_sp, 
+                      MAT,
+                      field = "binomial",
+                      fun = function (x, ...) {length(unique(na.omit(x)))})
+plot(richness)
+```
+
+Questions :
+
+-	Où est la richesse la plus élevée ?
+
+-	Que pouvez-vous déduire sur les limites de température des urodèles ? 
+
+-	Que remarquez-vous de particulier sur le graphe température/richesse ?
+
+
+richness.urodeles <- getValues(richness)
+temperature <- getValues(MAT)
+
+plot(richness.urodeles ~ temperature,
+     cex = .8, pch = 1, col = rgb(0,0,0,alpha=0.3))
+abline(v = 27)
+
+# 4
+e <- extent(-180, 180, -20, 90)
+richness <- crop(richness, 
+                 e)
+
+
+richness.laea <- projectRaster(richness,
+                               crs = "+proj=laea +lat_0=90 +lon_0=0",
+                               method = "bilinear")
+
+continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
+
+library(tmap)
+richness.map <- tm_shape(richness.laea) +
+                tm_raster() 
+
+continents.map <- tm_shape(continents.laea) +
+                  tm_lines()
+
+
+richness.map + continents.map 
+
+
+
