@@ -1,7 +1,7 @@
 ---
 title: "UE BIME - TP SIG sous R"
 author: "Boris Leroy, UMR BOREA, Muséum National d'Histoire Naturelle"
-output: html_notebook
+output: html_document
 editor_options: 
   chunk_output_type: inline
 ---
@@ -81,8 +81,8 @@ Pour cela, utilisez la fonction plot, mais n’affichez que la colonne « family
 
 Vous pouvez également n’afficher qu’une seule famille en utilisant la fonction `which` : 
 
-```{r eval=FALSE}
-plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"), 
+```
+plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), 
              "family"])
 ```
              
@@ -100,7 +100,7 @@ Ajoutez ensuite la distribution des salamandridae par-dessus, ce qui requerra de
 
 Maintenant, utilisez le package ggplot2 pour afficher les distributions des familles d’urodèles avec les limites des continents :
 
-```{r eval=FALSE}
+```
 library(ggplot2)
 ggplot() +
   geom_sf(data = continents) +
@@ -122,7 +122,7 @@ Pour répondre à ces questions, inspectez votre raster en tapant son nom dans l
 
 Chargez maintenant l’ensembles des rasters de températures moyennes mensuelles avec la commande `stack()` : pour cela il faut donner à R à la fois le dossier dans lequel se trouvent les fichiers, et les noms de fichiers.
 
-```{r eval=FALSE}
+```
 worldclim <- stack(paste0("./data/WorldClim data/", 
                           list.files("./data/WorldClim data/")))
 ```
@@ -145,7 +145,7 @@ Référez-vous aux métadonnées de l’IUCN : quels codes utiliser ?
 
 Voici un exemple de ligne qui permet de ne garder que les données de présence actuelle (non éteinte) :
 
-```{r eval=FALSE}
+```
 iucn_sf <- iucn_sf[which(iucn_sf$presence == 1), ]
 ```
 
@@ -159,17 +159,73 @@ Pour cela, utilisez la fonction `aggregate` sur le raster de température moyenn
 
 ## 3.3 Calcul de la richesse spécifique
 
-Il y a différentes procédures possibles pour calculer la richesse spécifique. Par exemple, on peut convertir tous les polygones d’espèces en rasters de présence / absence, puis faire la somme des présences par cases. Une autre option, plus rapide, consiste à « rasteriser » (transformer en raster) l’ensemble des polygones en même temps, et de demander comme résultat de rasterisation le nombre de polygones par case. 
+Il s'agit habituellement d'une étape relativement facile à mettre en oeuvre, cependant il y a actuellement un bug dans les packages raster / sp / sf qui fait que le code "facile" ne fonctionne plus. [J'ai remonté l'information auprès du développeur du package raster](https://github.com/rspatial/raster/issues/171), mais il est peu probable que ça soit fixé au moment où vous réaliserez ce TP. Nous allons donc devoir utiliser une autre solution, qui est beaucoup plus longue en temps de calcul. 
 
-```{r eval=FALSE}
+### 3.3.1 Code simple qui ne marche pas actuellement :
+
+```
 richness <- rasterize(iucn_sf, 
                       MAT,
                       field = "binomial",
-                      fun = function (x, ...) length(unique(na.omit(x))))
+                      fun = function (x, ...) {length(unique(na.omit(x)))})
+```
+
+### 3.3.2 Solution alternative mais longue :
+
+Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
+
+Le protocole est le suivant:
+
+1. Limiter le jeu de données aux hynobiidés
+
+2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
+
+3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
+
+4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
+
+5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
+
+```
+# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des HYNOBIIDAE
+iucn_sf_reduced <- iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), ]
+
+
+library(dplyr)
+# 2. Les espèces peuvent avoir plusieurs polygones qu'il va falloir regrouper pour avoir un seul polygone par espèce
+# D'abord on utilise group_by sur la colonne "binomial" pour créer une table regroupant chaque espèce 
+iucn_sf_1polyparsp <- group_by(iucn_sf_reduced,
+                             binomial) 
+# Ensuite on procède à la fusion des polygones de chaque espèce, avec st_union
+iucn_sf_1polyparsp <- summarise(iucn_sf_1polyparsp,
+                              geometry = st_union(geometry))
+
+# 3. Nous allons créer un raster par espèce, et nous allons l'empiler dans pa.stack
+pa.stack <- stack()
+for(sp in unique(iucn_sf_1polyparsp$binomial))
+{
+  cat(sp, "\n") # Etant donné que la boucle est longue à tourner, j'utilise "cat" pour fournir des informations sur la progression
+  pa.stack <- addLayer(pa.stack,
+                       rasterize(iucn_sf_1polyparsp[which(iucn_sf_1polyparsp$binomial == sp), ],
+                                 MAT,
+                                 getCover = TRUE,
+                                 small = TRUE))
+  cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
+}
+# Pour faire les choses correctement on va mettre les noms de nos espèces sur nos couches de raster
+names(pa.stack) <- unique(iucn_sf_1polyparsp$binomial)
+
+# 4. A chaque fois qu'un polygone a chevauché un pixel, on va attribuer la présence dans le pixel.
+# Pour ça, on va convertir, pour chaque espèce, tous les pixels qui ont une valeur supérieure à zéro (i.e. qui ont été chevauché par son polygone de distribution)
+pa.stack[pa.stack > 0] <- 1
+
+# 5. On somme les présences pour calculer la richesse spécifique 
+richness <- sum(pa.stack, na.rm = T)
+plot(richness)
 ```
 
 
-Vous pouvez ensuite analyser graphiquement la richesse en fonction de la température, en récupérant les valeurs de richesse et de température avec getValues, puis en affichant la richesse en fonction de la température.
+Vous pouvez ensuite analyser graphiquement la richesse en fonction de la température, en récupérant les valeurs de richesse et de température avec `getValues`, puis en affichant la richesse en fonction de la température.
 
 Questions :
 
@@ -188,19 +244,19 @@ Attention : la projection des vecteurs se fait facilement par « simple » calcu
 Nous allons tout d’abord réduire la zone d’étude à l’hémisphère nord avec la commande `crop` :
 
 On définit l’étendue de l’hémisphère nord avec 
-```{r eval=FALSE}
+```
 e <- extent(-180, 180, 0, 90)
 ```
 
 Puis on recadre notre zone :
 
-```{r eval=FALSE}
+```
 richness <- crop(richness, e)
 ```
 
 Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover) :
 
-```{r eval=FALSE}
+```
 richness.laea <- projectRaster(richness,
                                crs = "+proj=laea +lat_0=90 +lon_0=0" ,
                                method = "bilinear")
@@ -211,7 +267,7 @@ continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0
 
 Enfin, nous allons créer notre carte en utilisant le package « tmap », qui permet de faire plusieurs couches différentes puis de tout assembler en une belle carte.
 
-```{r eval=FALSE}
+```
 richness.map <- tm_shape(richness.laea) +
                 tm_raster() 
 
@@ -229,5 +285,6 @@ Et voilà !
 Deux livres complets sur la cartographie avec R sont disponibles gratuitement en ligne :
 
 https://geocompr.robinlovelace.net/
+
 https://rspatial.org/
 
