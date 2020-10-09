@@ -64,8 +64,9 @@ summary(as.factor(iucn_rg$family))
 **Les salamandridae.**
 
 -	Où se trouvent les espèces d’amphibiens urodèles ?
+```{r}
 plot(iucn_rg)
-
+```
 
 
 ### 2.1.2 Avec le package sf
@@ -185,11 +186,11 @@ richness <- rasterize(iucn_sf,
 
 ### 3.3.2 Solution alternative mais longue :
 
-Nous allons l'appliquer uniquement sur l'exemple des ambystomatidés, sinon ça prendra trop de temps.
+Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
 
 Le protocole est le suivant:
 
-1. Limiter le jeu de données aux ambystomatidés
+1. Limiter le jeu de données aux hynobiidés
 
 2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
 
@@ -200,14 +201,14 @@ Le protocole est le suivant:
 5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
 
 ```{r alt1, cache=TRUE}
-# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des AMBYSTOMATIDAE
-iucn_sf_salamandridae <- iucn_sf[which(iucn_sf$family == "AMBYSTOMATIDAE"), ]
+# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des HYNOBIIDAE
+iucn_sf_reduced <- iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), ]
 
 
 library(dplyr)
 # 2. Les espèces peuvent avoir plusieurs polygones qu'il va falloir regrouper pour avoir un seul polygone par espèce
 # D'abord on utilise group_by sur la colonne "binomial" pour créer une table regroupant chaque espèce 
-iucn_sf_1polyparsp <- group_by(iucn_sf_salamandridae,
+iucn_sf_1polyparsp <- group_by(iucn_sf_reduced,
                              binomial) 
 # Ensuite on procède à la fusion des polygones de chaque espèce, avec st_union
 iucn_sf_1polyparsp <- summarise(iucn_sf_1polyparsp,
@@ -225,6 +226,8 @@ for(sp in unique(iucn_sf_1polyparsp$binomial))
                                  small = TRUE))
   cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
 }
+# Pour faire les choses correctement on va mettre les noms de nos espèces sur nos couches de raster
+names(pa.stack) <- unique(iucn_sf_1polyparsp$binomial)
 
 # 4. A chaque fois qu'un polygone a chevauché un pixel, on va attribuer la présence dans le pixel.
 # Pour ça, on va convertir, pour chaque espèce, tous les pixels qui ont une valeur supérieure à zéro (i.e. qui ont été chevauché par son polygone de distribution)
@@ -240,17 +243,7 @@ Questions :
 
 -	Où est la richesse la plus élevée ?
 
-**Dans le centre-est du Néarctique**
-
--	Que pouvez-vous déduire sur les limites de température des urodèles ? 
-
-**Les distributions des ambystomates sont comprises dans une gamme de température moyenne annuelle
-comprise entre -3°C et 25°C.**
-
--	Que remarquez-vous de particulier sur le graphe température/richesse ?
-
-**Explorez cette question sur le jeu de données complet, et vous découvrirez qu'il
-y a une seule espèce qui peut supporter des températures moyennes annuelles allant jusqu'à - 20°C**
+**Au Japon**
 
 ```{r}
 richness.urodeles <- getValues(richness)
@@ -261,12 +254,26 @@ plot(richness.urodeles ~ temperature,
 abline(v = 27)
 ```
 
-# 4
+-	Que pouvez-vous déduire sur les limites de température des urodèles ? 
+
+**Les distributions des ambystomates sont généralement comprises dans une gamme de température moyenne annuelle
+comprise entre 0°C et 20°C.**
+
+-	Que remarquez-vous de particulier sur le graphe température/richesse ?
+
+**Il y a une seule espèce qui peut supporter des températures moyennes annuelles allant jusqu'à - 18°C.
+Il s'agit de Salamandrella keyserlingii, une salamandre de Sibérie qui peut hiberner dans des conditions de température extrêmes.**
+
+![](img/Salamandrella keyserlingii.png)
+
+# Etape 4 : faire une belle carte
+
+```{r}
 e <- extent(-180, 180, -20, 90)
 richness <- crop(richness, 
                  e)
 
-
+# Projection suivant Lambert Azimutal Equal Area
 richness.laea <- projectRaster(richness,
                                crs = "+proj=laea +lat_0=90 +lon_0=0",
                                method = "bilinear")
@@ -282,6 +289,6 @@ continents.map <- tm_shape(continents.laea) +
 
 
 richness.map + continents.map 
-
+```
 
 
