@@ -172,61 +172,94 @@ MAT <- aggregate(MAT,
 
 ## 3.3 Calcul de la richesse spécifique
 
-```{r}
-pa.stack <- stack()
-for(sp in levels(as.factor(iucn_sf$binomial)))
-{
- # We rasterize the polygons of the current species into values of 1
- a <- try(pa.stack <- addLayer(pa.stack,
-                      rasterize(iucn_sf[iucn_sf$binomial == sp, ],
-                                MAT, 
-                                field = "binomial", 
-                                fun = function(x, ...) 1)))
-  if("try-error" %in% class(a)) 
-  {
-    print(sp)
-  }
+Il s'agit habituellement d'une étape relativement facile à mettre en oeuvre, cependant il y a actuellement un bug dans les packages raster / sp / sf qui fait que le code "facile" ne fonctionne plus. [J'ai remonté l'information auprès du développeur du package raster](https://github.com/rspatial/raster/issues/171), mais il est peu probable que ça soit fixé au moment où vous réaliserez ce TP. Nous allons donc devoir utiliser une autre solution, qui est beaucoup plus longue en temps de calcul. 
 
- 
-}
-# After the loop, we sum all presences to obtain the species richness
-b <- sum(pa.stack, na.rm = T)
-plot(b)
+### 3.3.1 Code simple qui ne marche pas actuellement :
 
-
-ggplot() +
-  geom_sf(data = continents, col = "grey") +
-  geom_sf(data = iucn_sf[iucn_sf$binomial == sp, ],
-          col = "black")
-```
-
-```{r}
-
-iucn_sf <- iucn_sf[-which(iucn_sf$binomial == "Afghanodon mustersi"), ]
-iucn_sf$binomial <- as.factor(iucn_sf$binomial)
-iucn_sp <- as_Spatial(iucn_sf)
-richness <- rasterize(iucn_sp, 
+```{r eval = FALSE}
+richness <- rasterize(iucn_sf, 
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
+```
+
+### 3.3.2 Solution alternative mais longue :
+
+Nous allons l'appliquer uniquement sur l'exemple des ambystomatidés, sinon ça prendra trop de temps.
+
+Le protocole est le suivant:
+
+1. Limiter le jeu de données aux ambystomatidés
+
+2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
+
+3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
+
+4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
+
+5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
+
+```{r alt1, cache=TRUE}
+# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des AMBYSTOMATIDAE
+iucn_sf_salamandridae <- iucn_sf[which(iucn_sf$family == "AMBYSTOMATIDAE"), ]
+
+
+library(dplyr)
+# 2. Les espèces peuvent avoir plusieurs polygones qu'il va falloir regrouper pour avoir un seul polygone par espèce
+# D'abord on utilise group_by sur la colonne "binomial" pour créer une table regroupant chaque espèce 
+iucn_sf_1polyparsp <- group_by(iucn_sf_salamandridae,
+                             binomial) 
+# Ensuite on procède à la fusion des polygones de chaque espèce, avec st_union
+iucn_sf_1polyparsp <- summarise(iucn_sf_1polyparsp,
+                              geometry = st_union(geometry))
+
+# 3. Nous allons créer un raster par espèce, et nous allons l'empiler dans pa.stack
+pa.stack <- stack()
+for(sp in unique(iucn_sf_1polyparsp$binomial))
+{
+  cat(sp, "\n") # Etant donné que la boucle est longue à tourner, j'utilise "cat" pour fournir des informations sur la progression
+  pa.stack <- addLayer(pa.stack,
+                       rasterize(iucn_sf_1polyparsp[which(iucn_sf_1polyparsp$binomial == sp), ],
+                                 MAT,
+                                 getCover = TRUE,
+                                 small = TRUE))
+  cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
+}
+
+# 4. A chaque fois qu'un polygone a chevauché un pixel, on va attribuer la présence dans le pixel.
+# Pour ça, on va convertir, pour chaque espèce, tous les pixels qui ont une valeur supérieure à zéro (i.e. qui ont été chevauché par son polygone de distribution)
+pa.stack[pa.stack > 0] <- 1
+
+# 5. On somme les présences pour calculer la richesse spécifique 
+richness <- sum(pa.stack, na.rm = T)
 plot(richness)
 ```
+
 
 Questions :
 
 -	Où est la richesse la plus élevée ?
 
+**Dans le centre-est du Néarctique**
+
 -	Que pouvez-vous déduire sur les limites de température des urodèles ? 
+
+**Les distributions des ambystomates sont comprises dans une gamme de température moyenne annuelle
+comprise entre -3°C et 25°C.**
 
 -	Que remarquez-vous de particulier sur le graphe température/richesse ?
 
+**Explorez cette question sur le jeu de données complet, et vous découvrirez qu'il
+y a une seule espèce qui peut supporter des températures moyennes annuelles allant jusqu'à - 20°C**
 
+```{r}
 richness.urodeles <- getValues(richness)
 temperature <- getValues(MAT)
 
 plot(richness.urodeles ~ temperature,
      cex = .8, pch = 1, col = rgb(0,0,0,alpha=0.3))
 abline(v = 27)
+```
 
 # 4
 e <- extent(-180, 180, -20, 90)
