@@ -130,7 +130,7 @@ worldclim <- stack(paste0("./data/WorldClim data/",
 
 Question : 
 
--	Calculez et affichez la moyenne annuelle des températures.
+-	Calculez et affichez le raster de moyenne annuelle des températures.
 
 
 # Etape 3 : analyse biogéographique de la diversité d’urodèles
