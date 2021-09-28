@@ -159,69 +159,19 @@ Pour cela, utilisez la fonction `aggregate` sur le raster de température moyenn
 
 ## 3.3 Calcul de la richesse spécifique
 
-Il s'agit habituellement d'une étape relativement facile à mettre en oeuvre, cependant il y a actuellement un bug dans les packages raster / sp / sf qui fait que le code "facile" ne fonctionne plus. [J'ai remonté l'information auprès du développeur du package raster](https://github.com/rspatial/raster/issues/171), mais il est peu probable que ça soit fixé au moment où vous réaliserez ce TP. Nous allons donc devoir utiliser une autre solution, qui est beaucoup plus longue en temps de calcul. 
 
-### 3.3.1 Code simple qui ne marche pas actuellement :
+Il s'agit d'une étape qui peut être soit faite de manière facile et rapide, soit longue et difficile ;)
+Je vous mets la version facile ici, vous aurez la difficile dans le corrigé.
+
+
+L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
+
 
 ```
 richness <- rasterize(iucn_sf, 
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
-```
-
-### 3.3.2 Solution alternative mais longue :
-
-Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
-
-Le protocole est le suivant:
-
-1. Limiter le jeu de données aux hynobiidés
-
-2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
-
-3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
-
-4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
-
-5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
-
-```
-# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des HYNOBIIDAE
-iucn_sf_reduced <- iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), ]
-
-
-library(dplyr)
-# 2. Les espèces peuvent avoir plusieurs polygones qu'il va falloir regrouper pour avoir un seul polygone par espèce
-# D'abord on utilise group_by sur la colonne "binomial" pour créer une table regroupant chaque espèce 
-iucn_sf_1polyparsp <- group_by(iucn_sf_reduced,
-                             binomial) 
-# Ensuite on procède à la fusion des polygones de chaque espèce, avec st_union
-iucn_sf_1polyparsp <- summarise(iucn_sf_1polyparsp,
-                              geometry = st_union(geometry))
-
-# 3. Nous allons créer un raster par espèce, et nous allons l'empiler dans pa.stack
-pa.stack <- stack()
-for(sp in unique(iucn_sf_1polyparsp$binomial))
-{
-  cat(sp, "\n") # Etant donné que la boucle est longue à tourner, j'utilise "cat" pour fournir des informations sur la progression
-  pa.stack <- addLayer(pa.stack,
-                       rasterize(iucn_sf_1polyparsp[which(iucn_sf_1polyparsp$binomial == sp), ],
-                                 MAT,
-                                 getCover = TRUE,
-                                 small = TRUE))
-  cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
-}
-# Pour faire les choses correctement on va mettre les noms de nos espèces sur nos couches de raster
-names(pa.stack) <- unique(iucn_sf_1polyparsp$binomial)
-
-# 4. A chaque fois qu'un polygone a chevauché un pixel, on va attribuer la présence dans le pixel.
-# Pour ça, on va convertir, pour chaque espèce, tous les pixels qui ont une valeur supérieure à zéro (i.e. qui ont été chevauché par son polygone de distribution)
-pa.stack[pa.stack > 0] <- 1
-
-# 5. On somme les présences pour calculer la richesse spécifique 
-richness <- sum(pa.stack, na.rm = T)
-plot(richness)
 ```
 
 
