@@ -172,7 +172,6 @@ MAT <- aggregate(MAT,
 
 
 ## 3.3 Calcul de la richesse spécifique
-
 Il s'agit d'une étape qui peut être soit faite de manière facile et rapide, soit longue et difficile ;)
 Je vous mets les deux ici. 
 
@@ -181,8 +180,8 @@ Je vous mets les deux ici.
 
 L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
 
-```{r eval = FALSE}
-richness <- rasterize(iucn_sf_reduced, 
+```{r eval = TRUE}
+richness <- rasterize(iucn_sf, 
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
@@ -238,9 +237,9 @@ names(pa.stack) <- unique(iucn_sf_1polyparsp$binomial)
 pa.stack[pa.stack > 0] <- 1
 
 # 5. On somme les présences pour calculer la richesse spécifique 
-richness <- sum(pa.stack, na.rm = T)
-richness[richness == 0] <- NA
-plot(richness)
+richness2 <- sum(pa.stack, na.rm = T)
+richness2[richness == 0] <- NA
+plot(richness2)
 ```
 
 
@@ -269,7 +268,7 @@ comprise entre 0°C et 20°C.**
 **Il y a une seule espèce qui peut supporter des températures moyennes annuelles allant jusqu'à - 18°C.
 Il s'agit de Salamandrella keyserlingii, une salamandre de Sibérie qui peut hiberner dans des conditions de température extrêmes.**
 
-![](img/Salamandrella_keyserlingii2.png)
+  ![](img/Salamandrella_keyserlingii2.png)
 
 # Etape 4 : faire une belle carte
 
@@ -279,6 +278,9 @@ richness <- crop(richness,
                  e)
 
 # Projection suivant Lambert Azimutal Equal Area
+# Petit bug avec raster en ce moment, donc pour éviter les problèmes il faut écrire le raster sur le disque puis le relire
+writeRaster(richness, "./richness.grd", overwrite = TRUE)
+richness <- raster("./richness.grd")
 richness.laea <- projectRaster(richness,
                                crs = "+proj=laea +lat_0=90 +lon_0=0",
                                method = "bilinear")
