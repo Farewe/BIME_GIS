@@ -258,7 +258,7 @@ ggplot() +
                           list.files(&quot;./data/WorldClim data/&quot;)))</code></pre>
 <p>Question :</p>
 <ul>
-<li>Calculez et affichez la moyenne annuelle des températures.</li>
+<li>Calculez et affichez le raster de moyenne annuelle des températures.</li>
 </ul>
 </div>
 </div>
@@ -305,9 +305,15 @@ ggplot() +
 <pre><code>e &lt;- extent(-180, 180, 0, 90)</code></pre>
 <p>Puis on recadre notre zone :</p>
 <pre><code>richness &lt;- crop(richness, e)</code></pre>
-<p>Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover) :</p>
-<pre><code>richness.laea &lt;- projectRaster(richness,
-                               crs = &quot;+proj=laea +lat_0=90 +lon_0=0&quot; ,
+<p>Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover).</p>
+<p><em>Note : en ce moment il peut y avoir un bug avec raster qui fait échouer la projection. Pour éviter ce bug il suffit d’écrire le raster sur le disque et le relire.</em></p>
+<pre><code># Workaround pour le bug du moment
+writeRaster(richness, &quot;./richness.grd&quot;, overwrite = TRUE)
+richness &lt;- raster(&quot;./richness.grd&quot;)
+
+# Projection
+richness.laea &lt;- projectRaster(richness,
+                               crs = &quot;+proj=laea +lat_0=90 +lon_0=0&quot;,
                                method = &quot;bilinear&quot;)
 # Appliquons la même projection sur le vecteur des limites des continents :
 continents.laea &lt;- st_transform(continents, crs = &quot;+proj=laea +lat_0=90 +lon_0=0&quot;)</code></pre>

@@ -204,11 +204,18 @@ Puis on recadre notre zone :
 richness <- crop(richness, e)
 ```
 
-Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover) :
+Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover).
+
+*Note : en ce moment il peut y avoir un bug avec raster qui fait échouer la projection. Pour éviter ce bug il suffit d'écrire le raster sur le disque et le relire.*
 
 ```
+# Workaround pour le bug du moment
+writeRaster(richness, "./richness.grd", overwrite = TRUE)
+richness <- raster("./richness.grd")
+
+# Projection
 richness.laea <- projectRaster(richness,
-                               crs = "+proj=laea +lat_0=90 +lon_0=0" ,
+                               crs = "+proj=laea +lat_0=90 +lon_0=0",
                                method = "bilinear")
 # Appliquons la même projection sur le vecteur des limites des continents :
 continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
