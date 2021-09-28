@@ -173,12 +173,16 @@ MAT <- aggregate(MAT,
 
 ## 3.3 Calcul de la richesse spécifique
 
-Il s'agit habituellement d'une étape relativement facile à mettre en oeuvre, cependant il y a actuellement un bug dans les packages raster / sp / sf qui fait que le code "facile" ne fonctionne plus. [J'ai remonté l'information auprès du développeur du package raster](https://github.com/rspatial/raster/issues/171), mais il est peu probable que ça soit fixé au moment où vous réaliserez ce TP. Nous allons donc devoir utiliser une autre solution, qui est beaucoup plus longue en temps de calcul. 
+Il s'agit d'une étape qui peut être soit faite de manière facile et rapide, soit longue et difficile ;)
+Je vous mets les deux ici. 
 
-### 3.3.1 Code simple qui ne marche pas actuellement :
+
+### 3.3.1 Code simple :
+
+L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
 
 ```{r eval = FALSE}
-richness <- rasterize(iucn_sf, 
+richness <- rasterize(iucn_sf_reduced, 
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
@@ -222,8 +226,8 @@ for(sp in unique(iucn_sf_1polyparsp$binomial))
   pa.stack <- addLayer(pa.stack,
                        rasterize(iucn_sf_1polyparsp[which(iucn_sf_1polyparsp$binomial == sp), ],
                                  MAT,
-                                 getCover = TRUE,
-                                 small = TRUE))
+                                 field = "binomial",
+                                 fun = function(x, ...) 1))
   cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
 }
 # Pour faire les choses correctement on va mettre les noms de nos espèces sur nos couches de raster
@@ -235,6 +239,7 @@ pa.stack[pa.stack > 0] <- 1
 
 # 5. On somme les présences pour calculer la richesse spécifique 
 richness <- sum(pa.stack, na.rm = T)
+richness[richness == 0] <- NA
 plot(richness)
 ```
 
@@ -264,7 +269,7 @@ comprise entre 0°C et 20°C.**
 **Il y a une seule espèce qui peut supporter des températures moyennes annuelles allant jusqu'à - 18°C.
 Il s'agit de Salamandrella keyserlingii, une salamandre de Sibérie qui peut hiberner dans des conditions de température extrêmes.**
 
-![](img/Salamandrella keyserlingii.png)
+![](img/Salamandrella_keyserlingii2.png)
 
 # Etape 4 : faire une belle carte
 
