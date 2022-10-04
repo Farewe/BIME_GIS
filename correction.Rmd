@@ -91,6 +91,8 @@ plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"),
 
 **Les Plethodontidae et Ambystomatidae sont des familles néarctiques (Amérique du Nord). Les Salamandridae sont holarctiques (hémisphère nord en entier). Les Hynobiidae sont plutôt paléarctiques à orientales (Europe-Asie).**
 
+
+
 ### 2.2 Données vectorielles : limites des continents
 
 ```{r}
@@ -157,6 +159,7 @@ iucn_sf <- iucn_sf[which(iucn_sf$origin == 1), ]
 # = la même chose que :
 iucn_sf <- iucn_sf[which(iucn_sf$presence == 1 & iucn_sf$origin == 1), ]
 
+# Certains polygones sont dupliqués : pour la même espèce, on peut avoir plusieurs polygones
 iucn_sf[which(duplicated(iucn_sf$binomial)), ]
 ```
 
@@ -185,69 +188,14 @@ richness <- rasterize(iucn_sf,
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
+plot(richness)
 ```
-
-### 3.3.2 Solution alternative mais longue :
-
-Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
-
-Le protocole est le suivant:
-
-1. Limiter le jeu de données aux hynobiidés
-
-2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
-
-3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
-
-4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
-
-5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
-
-```{r alt1, cache=TRUE}
-# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des HYNOBIIDAE
-iucn_sf_reduced <- iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), ]
-
-
-library(dplyr)
-# 2. Les espèces peuvent avoir plusieurs polygones qu'il va falloir regrouper pour avoir un seul polygone par espèce
-# D'abord on utilise group_by sur la colonne "binomial" pour créer une table regroupant chaque espèce 
-iucn_sf_1polyparsp <- group_by(iucn_sf_reduced,
-                             binomial) 
-# Ensuite on procède à la fusion des polygones de chaque espèce, avec st_union
-iucn_sf_1polyparsp <- summarise(iucn_sf_1polyparsp,
-                              geometry = st_union(geometry))
-
-# 3. Nous allons créer un raster par espèce, et nous allons l'empiler dans pa.stack
-pa.stack <- stack()
-for(sp in unique(iucn_sf_1polyparsp$binomial))
-{
-  cat(sp, "\n") # Etant donné que la boucle est longue à tourner, j'utilise "cat" pour fournir des informations sur la progression
-  pa.stack <- addLayer(pa.stack,
-                       rasterize(iucn_sf_1polyparsp[which(iucn_sf_1polyparsp$binomial == sp), ],
-                                 MAT,
-                                 field = "binomial",
-                                 fun = function(x, ...) 1))
-  cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
-}
-# Pour faire les choses correctement on va mettre les noms de nos espèces sur nos couches de raster
-names(pa.stack) <- unique(iucn_sf_1polyparsp$binomial)
-
-# 4. A chaque fois qu'un polygone a chevauché un pixel, on va attribuer la présence dans le pixel.
-# Pour ça, on va convertir, pour chaque espèce, tous les pixels qui ont une valeur supérieure à zéro (i.e. qui ont été chevauché par son polygone de distribution)
-pa.stack[pa.stack > 0] <- 1
-
-# 5. On somme les présences pour calculer la richesse spécifique 
-richness2 <- sum(pa.stack, na.rm = T)
-richness2[richness == 0] <- NA
-plot(richness2)
-```
-
 
 Questions :
 
 -	Où est la richesse la plus élevée ?
 
-**Au Japon**
+**Au Nord-Est de l'Amérique du Nord**
 
 ```{r}
 richness.urodeles <- getValues(richness)

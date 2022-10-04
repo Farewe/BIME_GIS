@@ -85,7 +85,7 @@ Vous pouvez également n’afficher qu’une seule famille en utilisant la fonct
 plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), 
              "family"])
 ```
-             
+
 ### 2.2 Données vectorielles : limites des continents
 
 Chargez les limites des continents avec le package sf.
