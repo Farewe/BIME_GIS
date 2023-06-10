@@ -35,7 +35,7 @@ Questions :
 
 -	Combien y a-t-il de polygones ?
 
-**742**
+**890** (dans le fichier que j'ai, cf. features)
 
 
 
@@ -50,7 +50,7 @@ iucn_rg$binomial[1:25] # Affichons uniquement les 25 premiers éléments
 length(unique(iucn_rg$binomial))
 ```
 
-**Il y a 607 espèces.** 
+**Il y a 697 espèces.** 
 
 
 
@@ -61,13 +61,14 @@ length(unique(iucn_rg$binomial))
 summary(as.factor(iucn_rg$family))
 ```
 
-**Les salamandridae.**
+**Les PLETHODONTIDAE**
 
 -	Où se trouvent les espèces d’amphibiens urodèles ?
 ```{r}
 plot(iucn_rg)
 ```
 
+**Principalement dans l'hémisphère nord**
 
 ### 2.1.2 Avec le package sf
 
@@ -173,34 +174,33 @@ MAT <- aggregate(MAT,
 
 ## 3.3 Calcul de la richesse spécifique
 
-Il s'agit habituellement d'une étape relativement facile à mettre en oeuvre, cependant il y a actuellement un bug dans les packages raster / sp / sf qui fait que le code "facile" ne fonctionne plus. [J'ai remonté l'information auprès du développeur du package raster](https://github.com/rspatial/raster/issues/171), mais il est peu probable que ça soit fixé au moment où vous réaliserez ce TP. Nous allons donc devoir utiliser une autre solution, qui est beaucoup plus longue en temps de calcul. 
 
-### 3.3.1 Code simple qui ne marche pas actuellement :
-
-```{r eval = FALSE}
+```{r eval = TRUE}
 richness <- rasterize(iucn_sf, 
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
+
+plot(richness)
 ```
 
-### 3.3.2 Solution alternative mais longue :
 
-Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
 
-Le protocole est le suivant:
+```{r alt1, cache=TRUE, eval=FALSE,include=FALSE}
+# Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
+# 
+# Le protocole est le suivant:
+# 
+# 1. Limiter le jeu de données aux hynobiidés
+# 
+# 2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
+# 
+# 3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
+# 
+# 4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
+# 
+# 5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
 
-1. Limiter le jeu de données aux hynobiidés
-
-2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
-
-3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
-
-4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
-
-5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
-
-```{r alt1, cache=TRUE}
 # 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des HYNOBIIDAE
 iucn_sf_reduced <- iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), ]
 
@@ -243,7 +243,7 @@ Questions :
 
 -	Où est la richesse la plus élevée ?
 
-**Au Japon**
+**En Amérique du Nord**
 
 ```{r}
 richness.urodeles <- getValues(richness)
