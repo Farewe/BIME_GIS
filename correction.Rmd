@@ -92,6 +92,8 @@ plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"),
 
 **Les Plethodontidae et Ambystomatidae sont des familles néarctiques (Amérique du Nord). Les Salamandridae sont holarctiques (hémisphère nord en entier). Les Hynobiidae sont plutôt paléarctiques à orientales (Europe-Asie).**
 
+
+
 ### 2.2 Données vectorielles : limites des continents
 
 ```{r}
@@ -158,6 +160,7 @@ iucn_sf <- iucn_sf[which(iucn_sf$origin == 1), ]
 # = la même chose que :
 iucn_sf <- iucn_sf[which(iucn_sf$presence == 1 & iucn_sf$origin == 1), ]
 
+# Certains polygones sont dupliqués : pour la même espèce, on peut avoir plusieurs polygones
 iucn_sf[which(duplicated(iucn_sf$binomial)), ]
 ```
 
@@ -174,6 +177,7 @@ MAT <- aggregate(MAT,
 
 ## 3.3 Calcul de la richesse spécifique
 
+L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
 
 ```{r eval = TRUE}
 richness <- rasterize(iucn_sf, 
@@ -238,12 +242,12 @@ richness <- sum(pa.stack, na.rm = T)
 plot(richness)
 ```
 
-
 Questions :
 
 -	Où est la richesse la plus élevée ?
 
-**En Amérique du Nord**
+
+**Au Nord-Est de l'Amérique du Nord**
 
 ```{r}
 richness.urodeles <- getValues(richness)
@@ -264,7 +268,7 @@ comprise entre 0°C et 20°C.**
 **Il y a une seule espèce qui peut supporter des températures moyennes annuelles allant jusqu'à - 18°C.
 Il s'agit de Salamandrella keyserlingii, une salamandre de Sibérie qui peut hiberner dans des conditions de température extrêmes.**
 
-![](img/Salamandrella keyserlingii.png)
+  ![](img/Salamandrella_keyserlingii2.png)
 
 # Etape 4 : faire une belle carte
 
@@ -274,6 +278,9 @@ richness <- crop(richness,
                  e)
 
 # Projection suivant Lambert Azimutal Equal Area
+# Petit bug avec raster en ce moment, donc pour éviter les problèmes il faut écrire le raster sur le disque puis le relire
+writeRaster(richness, "./richness.grd", overwrite = TRUE)
+richness <- raster("./richness.grd")
 richness.laea <- projectRaster(richness,
                                crs = "+proj=laea +lat_0=90 +lon_0=0",
                                method = "bilinear")

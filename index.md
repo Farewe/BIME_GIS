@@ -21,22 +21,22 @@ Sur cette page, vous pouvez télécharger de nombreuses données de distribution
 
 *Recherchez et téléchargez les polygones de distribution des amphibiens urodèles.* Lorsque vous demandez à télécharger, il faut préciser le motif de votre téléchargement, vous pouvez indiquer par exemple « teaching ». Une fois le motif entré, vous arrivez dans votre page de téléchargement avec les liens qui permettent d’accéder aux fichiers. Une fois que le fichier .zip contenant les polygones de distribution est sur votre ordinateur, extrayez son contenu dans votre répertoire de données pour R. 
 
-Retournez ensuite sur la page **[Resources and Publications](https://www.iucnredlist.org/resources/grid)**, allez dans la section *Spatial Data & Mapping Resources*, et téléchargez le fichier **Presence, Seasonal and Origin codes for distribution maps and country coding.** Ce fichier contient les codes des différents polygones de distribution : présence (espèce présente, éteinte, etc.), origine (zone native, introduite, etc.) et saisonnalité (résidente, saison de reproduction, etc.). Vous aurez besoin de vous y faire référence pour comprendre les données spatiales de l'IUCN.
+Retournez ensuite sur la page **[Resources and Publications](https://www.iucnredlist.org/resources/grid)**, allez dans la section *Spatial Data & Mapping Resources*, et téléchargez le fichier **Legend combinations for IUCN Red List Spatial Data** (ouvrez la page et cherchez le lien). Ce fichier contient les codes des différents polygones de distribution : présence (espèce présente, éteinte, etc.), origine (zone native, introduite, etc.) et saisonnalité (résidente, saison de reproduction, etc.). Vous aurez besoin de vous y faire référence pour comprendre les données spatiales de l'IUCN.
 
-## 1.2 Données vectorielles : polygones de distributions d’espèces IUCN
+## 1.2 Données vectorielles : limites des continents
 
-Allez sur le site de **Natural Earth** : [www.naturalearthdata.com](www.naturalearthdata.com), dans la section **[Downloads](https://www.naturalearthdata.com/downloads/)**. Intéressez-vous aux données à échelles intermédiaire (1:50m), et allez dans la page sur les données physiques (Physical). Téléchargez les lignes de côtes. Une fois que le fichier .zip contenant les lignes de côtes est sur votre ordinateur, extrayez son contenu dans votre répertoire de données pour R.
+Allez sur le site de **Natural Earth** : [www.naturalearthdata.com](https://www.naturalearthdata.com), dans la section **[Downloads](https://www.naturalearthdata.com/downloads/)**. Intéressez-vous aux données à échelles intermédiaire (1:50m), et allez dans la page sur les données physiques (Physical). Téléchargez les lignes de côtes. Une fois que le fichier .zip contenant les lignes de côtes est sur votre ordinateur, extrayez son contenu dans votre répertoire de données pour R.
+
+[lien direct si le site est temporairement inaccessible](https://naturalearth.s3.amazonaws.com/50m_physical/ne_50m_coastline.zip)
 
 ![](img/NE1.png)
 
 ## 1.3 Données raster : climatos globales WorldClim
 
-Allez sur le site WorldClim : [www.worldclim.org.](www.worldclim.org) Sur ce site, vous pouvez  télécharger la version 2.0 du jeu de données WorldClim. Ce jeux de données correspond à des données de moyennes mensuelles interpolées sur la base de milliers de stations météorologiques distribuées dans le monde entier. Certaines zones étant moins bien couvertes que d’autres en termes de stations météo, leur qualité est moins importante, ce qui est à prendre en compte quand vous analysez ces données. Dans la version 2.0 de WorldClim, des données satellites ont été utilisées pour corriger les interpolations, notamment dans les zones à faible densité de stations météorologiques. 
+Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org) Sur ce site, vous pouvez  télécharger la version 2.0 du jeu de données WorldClim. Ce jeu de données correspond à des données de moyennes mensuelles interpolées sur la base de milliers de stations météorologiques distribuées dans le monde entier. Certaines zones étant moins bien couvertes que d’autres en termes de stations météo, leur qualité est moins importante, ce qui est à prendre en compte quand vous analysez ces données. Dans la version 2.0 de WorldClim, des données satellites ont été utilisées pour corriger les interpolations, notamment dans les zones à faible densité de stations météorologiques. 
 
 ![](img/wc1.png)
  
-Etant donné que nous ne nous intéressons pas aux changements climatiques ici, nous allons télécharger les données actuelles en version 2.0.
-
 **Téléchargez les données historiques de température moyenne à la résolution la plus grossière (10 minutes).** Une fois que le fichier .zip contenant les climatos de températures moyennes mensuelles est sur votre ordinateur, extrayez son contenu dans votre répertoire de données pour R. Attention : il est important que ces fichiers soient dans un sous-dossier contenant uniquement les rasters (par exemple un dossier nommé « worldclim data »).
 
 
@@ -85,7 +85,7 @@ Vous pouvez également n’afficher qu’une seule famille en utilisant la fonct
 plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), 
              "family"])
 ```
-             
+
 ### 2.2 Données vectorielles : limites des continents
 
 Chargez les limites des continents avec le package sf.
@@ -130,7 +130,7 @@ worldclim <- stack(paste0("./data/WorldClim data/",
 
 Question : 
 
--	Calculez et affichez la moyenne annuelle des températures.
+-	Calculez et affichez le raster de moyenne annuelle des températures.
 
 
 # Etape 3 : analyse biogéographique de la diversité d’urodèles
@@ -159,69 +159,19 @@ Pour cela, utilisez la fonction `aggregate` sur le raster de température moyenn
 
 ## 3.3 Calcul de la richesse spécifique
 
-Il s'agit habituellement d'une étape relativement facile à mettre en oeuvre, cependant il y a actuellement un bug dans les packages raster / sp / sf qui fait que le code "facile" ne fonctionne plus. [J'ai remonté l'information auprès du développeur du package raster](https://github.com/rspatial/raster/issues/171), mais il est peu probable que ça soit fixé au moment où vous réaliserez ce TP. Nous allons donc devoir utiliser une autre solution, qui est beaucoup plus longue en temps de calcul. 
 
-### 3.3.1 Code simple qui ne marche pas actuellement :
+Il s'agit d'une étape qui peut être soit faite de manière facile et rapide, soit longue et difficile ;)
+Je vous mets la version facile ici, vous aurez la difficile dans le corrigé.
+
+
+L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
+
 
 ```
 richness <- rasterize(iucn_sf, 
                       MAT,
                       field = "binomial",
                       fun = function (x, ...) {length(unique(na.omit(x)))})
-```
-
-### 3.3.2 Solution alternative mais longue :
-
-Nous allons l'appliquer uniquement sur l'exemple des hynobiidés, sinon ça prendra trop de temps.
-
-Le protocole est le suivant:
-
-1. Limiter le jeu de données aux hynobiidés
-
-2. Pour chaque espèce, fusionner tous les polygones de manière à n'en avoir plus qu'un par espèce
-
-3. Chevaucher chaque polygone sur la grille raster worldclim de manière à récupérer, dans chaque pixel, le pourcentage de couverture du polygone
-
-4. A chaque fois qu'un polygone chevauche un pixel, on va attribuer la présence de l'espèce dans le pixel
-
-5. On calcule la richesse en faisant la somme des présences dans chaque pixel.
-
-```
-# 1. Parce que le temps de calcul va être long, on va ici se limiter à la famille des HYNOBIIDAE
-iucn_sf_reduced <- iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), ]
-
-
-library(dplyr)
-# 2. Les espèces peuvent avoir plusieurs polygones qu'il va falloir regrouper pour avoir un seul polygone par espèce
-# D'abord on utilise group_by sur la colonne "binomial" pour créer une table regroupant chaque espèce 
-iucn_sf_1polyparsp <- group_by(iucn_sf_reduced,
-                             binomial) 
-# Ensuite on procède à la fusion des polygones de chaque espèce, avec st_union
-iucn_sf_1polyparsp <- summarise(iucn_sf_1polyparsp,
-                              geometry = st_union(geometry))
-
-# 3. Nous allons créer un raster par espèce, et nous allons l'empiler dans pa.stack
-pa.stack <- stack()
-for(sp in unique(iucn_sf_1polyparsp$binomial))
-{
-  cat(sp, "\n") # Etant donné que la boucle est longue à tourner, j'utilise "cat" pour fournir des informations sur la progression
-  pa.stack <- addLayer(pa.stack,
-                       rasterize(iucn_sf_1polyparsp[which(iucn_sf_1polyparsp$binomial == sp), ],
-                                 MAT,
-                                 getCover = TRUE,
-                                 small = TRUE))
-  cat(round(which(iucn_sf_1polyparsp$binomial == sp) / length(iucn_sf_1polyparsp$binomial), 4) * 100, "%\n")
-}
-# Pour faire les choses correctement on va mettre les noms de nos espèces sur nos couches de raster
-names(pa.stack) <- unique(iucn_sf_1polyparsp$binomial)
-
-# 4. A chaque fois qu'un polygone a chevauché un pixel, on va attribuer la présence dans le pixel.
-# Pour ça, on va convertir, pour chaque espèce, tous les pixels qui ont une valeur supérieure à zéro (i.e. qui ont été chevauché par son polygone de distribution)
-pa.stack[pa.stack > 0] <- 1
-
-# 5. On somme les présences pour calculer la richesse spécifique 
-richness <- sum(pa.stack, na.rm = T)
-plot(richness)
 ```
 
 
@@ -254,11 +204,18 @@ Puis on recadre notre zone :
 richness <- crop(richness, e)
 ```
 
-Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover) :
+Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover).
+
+*Note : en ce moment il peut y avoir un bug avec raster qui fait échouer la projection. Pour éviter ce bug il suffit d'écrire le raster sur le disque et le relire.*
 
 ```
+# Workaround pour le bug du moment
+writeRaster(richness, "./richness.grd", overwrite = TRUE)
+richness <- raster("./richness.grd")
+
+# Projection
 richness.laea <- projectRaster(richness,
-                               crs = "+proj=laea +lat_0=90 +lon_0=0" ,
+                               crs = "+proj=laea +lat_0=90 +lon_0=0",
                                method = "bilinear")
 # Appliquons la même projection sur le vecteur des limites des continents :
 continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
