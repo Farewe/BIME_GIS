@@ -27,13 +27,11 @@ Retournez ensuite sur la page **[Resources and Publications](https://www.iucnred
 
 Allez sur le site de **Natural Earth** : [www.naturalearthdata.com](https://www.naturalearthdata.com), dans la section **[Downloads](https://www.naturalearthdata.com/downloads/)**. Intéressez-vous aux données à échelles intermédiaire (1:50m), et allez dans la page sur les données physiques (Physical). Téléchargez les lignes de côtes. Une fois que le fichier .zip contenant les lignes de côtes est sur votre ordinateur, extrayez son contenu dans votre répertoire de données pour R.
 
-[lien direct si le site est temporairement inaccessible](https://naturalearth.s3.amazonaws.com/50m_physical/ne_50m_coastline.zip)
-
 ![](img/NE1.png)
 
 ## 1.3 Données raster : climatos globales WorldClim
 
-Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org) Sur ce site, vous pouvez  télécharger la version 2.0 du jeu de données WorldClim. Ce jeu de données correspond à des données de moyennes mensuelles interpolées sur la base de milliers de stations météorologiques distribuées dans le monde entier. Certaines zones étant moins bien couvertes que d’autres en termes de stations météo, leur qualité est moins importante, ce qui est à prendre en compte quand vous analysez ces données. Dans la version 2.0 de WorldClim, des données satellites ont été utilisées pour corriger les interpolations, notamment dans les zones à faible densité de stations météorologiques. 
+Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org) Sur ce site, vous pouvez  télécharger la version 2.1 du jeu de données WorldClim. Ce jeu de données correspond à des données de moyennes mensuelles interpolées sur la base de milliers de stations météorologiques distribuées dans le monde entier. Certaines zones étant moins bien couvertes que d’autres en termes de stations météo, leur qualité est moins importante, ce qui est à prendre en compte quand vous analysez ces données. Dans la version 2.1 de WorldClim, des données satellites ont été utilisées pour corriger les interpolations, notamment dans les zones à faible densité de stations météorologiques. 
 
 ![](img/wc1.png)
  
@@ -43,35 +41,40 @@ Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org) Su
 # Etape 2 : Lecture des données sous R
 ## 2.1 Données vectorielles : polygones de distribution d’espèces
 
-### 2.1.1 Avec le package sp
+### 2.1.1 Avec le package terra
 
-Dans R, chargez le package rgdal ET le package raster***, puis lisez le fichier polygones de distributions IUCN avec la commande `readOGR()`. Inspectez votre objet spatial.
+Dans R, chargez le package terra, puis lisez le fichier polygones de distributions IUCN avec la commande `vect()`. Inspectez votre objet spatial.
 
-*** *Le package raster modifie la façon dont les objets sp sont affichés. Si vous ne chargez pas raster et que vous tapez le nom de votre objet spatial dans la console, dites adieu à votre console… (faites le test par vous-mêmes)*
-
-Questions :
-
--	Quel est le système de coordonnées ?
-
--	Combien y a-t-il de polygones ?
-
--	Combien y a-t-il d’espèces ?
-
--	Quelle est la famille la plus diversifiée d’urodèles ?
-
--	Où se trouvent les espèces d’amphibiens urodèles ?
 
 Pour cela, inspectez votre objet spatial :
 
 -	Affichez le dans la console
 
--	Utilisez `summary()`
+-	Utilisez `count()` du package R `plyr` pour compter le nombre de répétitions de chaque élément dans une colonne (familles, espèces...)
 
--	Utilisez la fonction `plot()`
+-	Utilisez la fonction `plot()` sur votre objet 
+
+
+
+Questions :
+
+-	Quel est le système de coordonnées ?
+
+-	Combien y a-t-il de polygones ? (Les polygones sont appelés 'geometries')
+
+- Combien y a-t-il de colonnes dans la table qui décrit les polygones (appelée table attributaire)
+
+-	Combien y a-t-il d’espèces ?
+
+-	Quelle est la famille la plus diversifiée d’urodèles ?
+
+-	Où se trouvent les amphibiens urodèles ?
+
+
 
 ### 2.1.2 Avec le package sf
 
-Chargez le package sf, puis lisez le fichier polygones de distribution IUCN avec la commande `st_read()`. Inspectez votre objet sf.
+Chargez le package terra, puis lisez le fichier polygones de distribution IUCN avec la commande `st_read()`. Inspectez votre objet sf.
 
 Questions :
 
@@ -88,17 +91,16 @@ plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"),
 
 ### 2.2 Données vectorielles : limites des continents
 
-Chargez les limites des continents avec le package sf.
+Chargez les limites des continents avec le package sf et faites une carte avec la distribution des salamandridae et les limites des continents. 
+Pour cela, procédez en deux étapes :
 
-Représentez-les graphiquement, en couleur grise. Ajoutez les axes, ainsi qu’un graticule. 
+1. Représentez (fonction `plot()`) les limites Ajoutez les axes (argument `axes`), ainsi qu’un graticule (argument `graticule`).Ajouter l’argument `reset = FALSE` lorsque vous lancez plot sur les limites des continents, ce qui permettra d'ajouter les salamandridae par-dessus en suite.
 
-Ajoutez ensuite la distribution des salamandridae par-dessus, ce qui requerra deux manipulations :
+2. Représentez les salamandridae en ajoutant l'argument `add = TRUE`.
 
--	Ajouter l’argument `reset = FALSE` lorsque vous lancez plot sur les limites des continents. 
+Une fois que vous avez effectué cette première représentation graphique avec les fonctions de base de R, vous allez faire cette fois-ci une carte en illustrant en couleur les différentes familles, mais cette fois-ci avec ggplot2, en vous inspirant du code ci-dessous :
 
--	Ajouter l’argument `add = TRUE` lorsque vous lancez plot sur les distributions des salamandridae.
-
-Maintenant, utilisez le package ggplot2 pour afficher les distributions des familles d’urodèles avec les limites des continents :
+**Attention, si votre ordinateur n'est pas très puissant, la commande ci-dessous peut prendre vraiment beaucoup de temps à s'exécuter. C'est la difficulté avec le SIG, ce sont souvent des fichiers très lourds à afficher. Si vous pensez que votre ordinateur est trop faible pour faire la carte, dans ce cas ne faites que la carte des salamandridae.**
 
 ```
 library(ggplot2)
@@ -107,8 +109,10 @@ ggplot() +
   geom_sf(data = iucn_sf, aes(fill = family))
 ```
 
+Comme vous pouvez le noter, les objets de type "sf" sont pris en charge nativement par ggplot2 avec `geom_sf()`, ce qui est très utile quand on fait de la cartographie sur R, surtout avec des données quantitatives.
+
 ### 2.3 Données raster : climatologies WorldClim
-Chargez le raster de température moyenne du mois de janvier avec la commande `raster`.
+Chargez le raster de température moyenne du mois de janvier avec la commande `rast()`.
 
 Questions : 
 
@@ -120,7 +124,7 @@ Questions :
 
 Pour répondre à ces questions, inspectez votre raster en tapant son nom dans la console. Affichez-le avec `plot()`.
 
-Chargez maintenant l’ensembles des rasters de températures moyennes mensuelles avec la commande `stack()` : pour cela il faut donner à R à la fois le dossier dans lequel se trouvent les fichiers, et les noms de fichiers.
+Chargez maintenant l’ensembles des rasters de températures moyennes mensuelles avec la commande `rast()` : pour cela il faut donner à R à la fois le dossier dans lequel se trouvent les fichiers, et les noms de fichiers. Utilisez `list.files()` qui liste les fichiers d'un répertoire :
 
 ```
 worldclim <- stack(paste0("./data/WorldClim data/", 
@@ -137,7 +141,13 @@ Question :
 
 Nous allons analyser aux échelles biogéographiques la diversité d’urodèles, et la comparer aux valeurs de températures, ce qui va nous amener à réaliser plusieurs opérations sur les polygones et rasters. Ce sont des opérations courantes en biogéographie, qui vont vous faire découvrir quelques outils de SIG. 
 
-La première étape consistera à calculer la richesse spécifique native non éteinte d’urodèles. Pour calculer la richesse spécifique, nous devons transformer les distributions d’urodèles en rasters de présence-absence. Avant cela, nous devons faire deux opérations : tout d’abord, nous assurer que les distributions d’urodèles ne contiennent que les données natives et non éteintes. Ensuite, nous allons préparer un raster qui aura les mêmes caractéristiques que les données de climatologie.
+La première étape consistera à calculer la richesse spécifique **native non éteinte** d’urodèles. Pour cela, nous devons compter dans chaque cellule d'un raster le nombre d'espèces qui chevauchent cette cellule. Il nous faudra procéder en 3 étapes :
+
+1. Filtrer les polygones de distribution pour éliminer les zones où les espèces sont éteintes et les zones non natives
+
+2. Préparer un raster qui servira de base pour calculer la richesse spécifique. Nous allons travailler à une résolution plus grossière que notre raster de température, pour réduire le temps de calcul.
+
+3. Pour ce raster, nous allons calculer dans chaque cellule le nombre de polygones d'espèces qui chevauchent la cellule - et ainsi obtenir la richesse spécifique dans chaque cellule. 
 
 ## 3.1 Distributions d’urodèles natives et non éteintes
 
@@ -149,9 +159,10 @@ Voici un exemple de ligne qui permet de ne garder que les données de présence 
 iucn_sf <- iucn_sf[which(iucn_sf$presence == 1), ]
 ```
 
-Complétez ce code pour faire la même chose pour les zones natives.
+Complétez ce code pour faire la même chose pour les **zones natives**.
 
-## 3.2 Création d’un raster pour la richesse spécifique
+## 3.2 Travail sur une résolution plus grossière pour réduire le temps de calcul 
+
 
 Nous allons créer un raster aux mêmes caractéristiques que notre climatologie WorldClim. Cependant, la résolution de WorldClim est trop fine et les calculs seront trop longs, donc nous allons tout d’abord grossir la résolution de la température moyenne annuelle de WorldClim.
 
@@ -160,22 +171,56 @@ Pour cela, utilisez la fonction `aggregate` sur le raster de température moyenn
 ## 3.3 Calcul de la richesse spécifique
 
 
-Il s'agit d'une étape qui peut être soit faite de manière facile et rapide, soit longue et difficile ;)
-Je vous mets la version facile ici, vous aurez la difficile dans le corrigé.
+Intuitivement, il parait logique de compter le nombre de polygones de distribution d'espèces qui chevauchent une cellule pour savoir combien il y a d'espèces. Cependant, une même espèce peut avoir plusieurs polygones différents ; ainsi, si on compte simplement le nombre de polygones, on peut obtenir une valeur qui ne correspond pas à la réalité. Ainsi, on ne peut pas se contenter de compter le nombre de polygones ; il nous faudra analyser la colonne "sci_name" pour compter le nombre d'espèces. 
 
+Comment faire cela ? Depuis le package terra, c'est un petit peu plus compliqué qu'avant ; il va falloir coder un petit peu.
 
-L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
+Nous allons d'abord regrouper les polygones par espèce afin de n'avoir qu'un seul groupe de polygones par espèce. Ensuite, il suffira de compter le nombre de groupe de polygones dans chaque cellule pour avoir la richesse.
 
 
 ```
-richness <- rasterize(iucn_sf, 
+# 0. Etape préalable souvent nécessaire 
+# S'assurer que les polygones sont valides. Souvent, ils ne le sont
+# pas, ce qui cause des erreurs de calcul ; pour éviter les problèmes,
+# on utilise st_make_valid() :
+iucn_sf <- st_make_valid(iucn_sf)
+
+# 1. Regrouper les polygones par espèce. Cette opération est longue
+# Soyez patients ! Cela prend plusieurs minutes. 
+# Si c'est trop long vous pouvez faire le calcul sur une famille seulement
+
+# Utilisons la syntaxe du package dplyr pour écrire ce code:
+library(dplyr)
+iucn_poly_par_sp <- iucn_sf %>% 
+  group_by(sci_name) %>%
+  summarise(geometry = st_union(geometry))
+# Lisons ce code : 
+# Partir du tableau iucn_sf
+# Le grouper par rapport à la colonne sci_name (= grouper par espèce)
+# Réaliser l'union des polygones (st_union(geometry)) et obtenir comme
+# résultat un tableau avec une seule ligne par espèce (summarise())
+
+# 2. Ajouter une colonne numérique avec la valeur '1' pour chaque
+# espèce. Cette astuce nous permettra de calculer la somme dans chaque 
+# cellule ensuite
+iucn_poly_par_sp$occurrence <- 1
+
+
+# 3. Calculer la richesse
+# On utilise la commande 'rasterize' qui transforme les polygones 
+# en rasters. Pour chaque cellule, on va demander à la fonction 
+# de calculer la somme de la colonne 'occurrence', ce qui reviendra
+# à compter le nombre d'espèces qui ont un polygone chevauchant la 
+# cellule.
+# On utilise notre raster de température comme modèle de base ici (MAT)
+richness <- rasterize(iucn_poly_par_sp, 
                       MAT,
-                      field = "binomial",
-                      fun = function (x, ...) {length(unique(na.omit(x)))})
+                      field = "occurrence",
+                      fun = sum)
 ```
 
 
-Vous pouvez ensuite analyser graphiquement la richesse en fonction de la température, en récupérant les valeurs de richesse et de température avec `getValues`, puis en affichant la richesse en fonction de la température.
+Vous pouvez ensuite analyser graphiquement la richesse en fonction de la température, en récupérant les valeurs de richesse et de température avec `values`, puis en affichant la richesse en fonction de la température.
 
 Questions :
 
@@ -195,7 +240,7 @@ Nous allons tout d’abord réduire la zone d’étude à l’hémisphère nord 
 
 On définit l’étendue de l’hémisphère nord avec 
 ```
-e <- extent(-180, 180, 0, 90)
+e <- ext(-180, 180, 0, 90)
 ```
 
 Puis on recadre notre zone :
@@ -206,17 +251,13 @@ richness <- crop(richness, e)
 
 Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover).
 
-*Note : en ce moment il peut y avoir un bug avec raster qui fait échouer la projection. Pour éviter ce bug il suffit d'écrire le raster sur le disque et le relire.*
 
 ```
-# Workaround pour le bug du moment
-writeRaster(richness, "./richness.grd", overwrite = TRUE)
-richness <- raster("./richness.grd")
 
 # Projection
-richness.laea <- projectRaster(richness,
-                               crs = "+proj=laea +lat_0=90 +lon_0=0",
-                               method = "bilinear")
+richness.laea <- project(richness,
+                         "+proj=laea +lat_0=90 +lon_0=0",
+                         method = "bilinear")
 # Appliquons la même projection sur le vecteur des limites des continents :
 continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
 ```
@@ -225,6 +266,7 @@ continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0
 Enfin, nous allons créer notre carte en utilisant le package « tmap », qui permet de faire plusieurs couches différentes puis de tout assembler en une belle carte.
 
 ```
+library(tmap)
 richness.map <- tm_shape(richness.laea) +
                 tm_raster() 
 
@@ -241,7 +283,7 @@ Et voilà !
 
 Deux livres complets sur la cartographie avec R sont disponibles gratuitement en ligne :
 
-https://geocompr.robinlovelace.net/
+https://r.geocompx.org/
 
 https://rspatial.org/
 

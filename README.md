@@ -4,4 +4,4 @@ Repository pour le TP SIG sous R de l'UE BIME
 
 Packages requis :
   
-dplyr rgdal raster sf rgeos ggplot2 tmap
+sf terra ggplot2 plyr dplyr  tmap

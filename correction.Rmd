@@ -10,17 +10,13 @@ output:
 
 # Etape 2 : Lecture des données sous R
 ## 2.1 Données vectorielles : polygones de distribution d’espèces
-### 2.1.1 Avec le package sp
+### 2.1.1 Avec le package terra
 ```{r}
-library(rgdal)
-library(raster)
-iucn_rg <- readOGR("./data/CAUDATA.shp")
+library(terra)
+iucn_t <- vect("./data/CAUDATA.shp")
 
 # Résumé de l'objet
-iucn_rg
-
-# Table attributaire
-head(iucn_rg)
+iucn_t
 ```
 
 
@@ -28,15 +24,19 @@ Questions :
 
 -	Quel est le système de coordonnées ?
 
-**WGS 84**
+**WGS 84 (EPSG 4326)**
 
 
 
 
 -	Combien y a-t-il de polygones ?
 
-**742**
+**910**
 
+
+- Combien y a-t-il de colonnes dans le tableau qui décrit les polygones ? 
+
+**28**
 
 
 
@@ -44,13 +44,13 @@ Questions :
 
 ```{r}
 # Certains noms d'espèces sont présents plusieurs fois :
-iucn_rg$binomial[1:25] # Affichons uniquement les 25 premiers éléments
+iucn_t$sci_name[1:25] # Affichons uniquement les 25 premiers éléments
 
 # On regarde donc le nombre d'éléments uniques :
-length(unique(iucn_rg$binomial))
+length(unique(iucn_t$sci_name))
 ```
 
-**Il y a 607 espèces.** 
+**Il y a 708 espèces.** 
 
 
 
@@ -58,14 +58,14 @@ length(unique(iucn_rg$binomial))
 -	Quelle est la famille la plus diversifiée d’urodèles ?
 
 ```{r}
-summary(as.factor(iucn_rg$family))
+plyr::count(iucn_t$family)
 ```
 
-**Les salamandridae.**
+**Les plethodontidae**
 
 -	Où se trouvent les espèces d’amphibiens urodèles ?
 ```{r}
-plot(iucn_rg)
+plot(iucn_t)
 ```
 
 
@@ -109,14 +109,14 @@ plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"),
 library(ggplot2)
 ggplot() +
   geom_sf(data = continents) +
-  geom_sf(data = iucn_sf, aes(fill = family))
+  geom_sf(data = iucn_sf, aes(fill = family),
+          alpha = .2)
 ```
 
 ### 2.3 Données raster : climatologies WorldClim
 
 ```{r}
-library(raster)
-jan <- raster("./data/WorldClim data/wc2.1_10m_tavg_01.tif")
+jan <- rast("./data/WorldClim data/wc2.1_10m_tavg_01.tif")
 jan
 ```
 
@@ -131,8 +131,7 @@ jan
 -	Quelle sont les températures moyennes de janvier les plus élevées et les plus froides sur la Terre, et où sont-elles situées ?
 
 ```{r}
-minValue(jan)
-maxValue(jan)
+jan
 plot(jan)
 ```
 
@@ -145,7 +144,7 @@ Question :
 -	Calculez et affichez la moyenne annuelle des températures.
 
 ```{r}
-worldclim <- stack(paste0("./data/WorldClim data/", list.files("./data/WorldClim data/")))
+worldclim <- rast(paste0("./data/WorldClim data/", list.files("./data/WorldClim data/")))
 MAT <- mean(worldclim, na.rm = T)
 plot(MAT)
 ```
@@ -160,11 +159,11 @@ iucn_sf <- iucn_sf[which(iucn_sf$origin == 1), ]
 iucn_sf <- iucn_sf[which(iucn_sf$presence == 1 & iucn_sf$origin == 1), ]
 
 # Certains polygones sont dupliqués : pour la même espèce, on peut avoir plusieurs polygones
-iucn_sf[which(duplicated(iucn_sf$binomial)), ]
+iucn_sf[which(duplicated(iucn_sf$sci_name)), ]
 ```
 
 
-## 3.2 Création d’un raster pour la richesse spécifique
+## 3.2 Travail sur une résolution plus grossière pour réduire le temps de calcul 
 
 ```{r}
 # On utilisera comme base de calcul le
@@ -175,19 +174,47 @@ MAT <- aggregate(MAT,
 
 
 ## 3.3 Calcul de la richesse spécifique
-Il s'agit d'une étape qui peut être soit faite de manière facile et rapide, soit longue et difficile ;)
-Je vous mets les deux ici. 
-
-
-### 3.3.1 Code simple :
-
-L'idée est de compter le nombre de polygones qui se chevauchent, tout en s'assurant qu'on ne va compter qu'une seule valeur pour les espèces pour lesquelles il y a plusieurs polygones. 
 
 ```{r eval = TRUE}
-richness <- rasterize(iucn_sf, 
+# 0. Etape préalable souvent nécessaire 
+# S'assurer que les polygones sont valides. Souvent, ils ne le sont
+# pas, ce qui cause des erreurs de calcul ; pour éviter les problèmes,
+# on utilise st_make_valid() :
+iucn_sf <- st_make_valid(iucn_sf)
+
+# 1. Regrouper les polygones par espèce. Cette opération est longue
+# Soyez patients ! Cela prend plusieurs minutes. 
+# Si c'est trop long vous pouvez faire le calcul sur une famille seulement
+
+# Utilisons la syntaxe du package dplyr pour écrire ce code de manière simple :
+library(dplyr)
+iucn_poly_par_sp <- iucn_sf %>% 
+  group_by(sci_name) %>%
+  summarise(geometry = st_union(geometry))
+# Lisons ce code : 
+# Partir du tableau iucn_sf
+# Le grouper par rapport à la colonne sci_name (= grouper par espèce)
+# Réaliser l'union des polygones (st_union(geometry)) et obtenir comme
+# résultat un tableau avec une seule ligne par espèce (summarise())
+
+# 2. Ajouter une colonne numérique avec la valeur '1' pour chaque
+# espèce. Cette astuce nous permettra de calculer la somme dans chaque 
+# cellule ensuite
+iucn_poly_par_sp$occurrence <- 1
+
+
+# 3. Calculer la richesse
+# On utilise la commande 'rasterize' qui transforme les polygones 
+# en rasters. Pour chaque cellule, on va demander à la fonction 
+# de calculer la somme de la colonne 'occurrence', ce qui reviendra
+# à compter le nombre d'espèces qui ont un polygone chevauchant la 
+# cellule.
+# On utilise notre raster de température comme modèle de base ici (MAT)
+richness <- rasterize(iucn_poly_par_sp, 
                       MAT,
-                      field = "binomial",
-                      fun = function (x, ...) {length(unique(na.omit(x)))})
+                      field = "occurrence",
+                      fun = sum)
+
 plot(richness)
 ```
 
@@ -198,8 +225,8 @@ Questions :
 **Au Nord-Est de l'Amérique du Nord**
 
 ```{r}
-richness.urodeles <- getValues(richness)
-temperature <- getValues(MAT)
+richness.urodeles <- values(richness)
+temperature <- values(MAT)
 
 plot(richness.urodeles ~ temperature,
      cex = .8, pch = 1, col = rgb(0,0,0,alpha=0.3))
@@ -221,18 +248,15 @@ Il s'agit de Salamandrella keyserlingii, une salamandre de Sibérie qui peut hib
 # Etape 4 : faire une belle carte
 
 ```{r}
-e <- extent(-180, 180, -20, 90)
+e <- ext(-180, 180, 0, 90)
 richness <- crop(richness, 
                  e)
 
 # Projection suivant Lambert Azimutal Equal Area
-# Petit bug avec raster en ce moment, donc pour éviter les problèmes il faut écrire le raster sur le disque puis le relire
-writeRaster(richness, "./richness.grd", overwrite = TRUE)
-richness <- raster("./richness.grd")
-richness.laea <- projectRaster(richness,
-                               crs = "+proj=laea +lat_0=90 +lon_0=0",
-                               method = "bilinear")
-
+richness.laea <- project(richness,
+                         "+proj=laea +lat_0=90 +lon_0=0",
+                         method = "bilinear")
+# Appliquons la même projection sur le vecteur des limites des continents :
 continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
 
 library(tmap)
