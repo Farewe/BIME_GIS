@@ -6,11 +6,28 @@ editor_options:
   chunk_output_type: inline
 ---
 
+# Note préalable
+
+Vous n'avez pas besoin de modèles de langage comme chatGPT pour faire ce TP.
+Toutes les instructions sont disponibles sur cette page, avec ces commandes de
+base qu'on doit toujours utiliser quand on inspecte des objets nouveaux :
+
+- affichez les objets dans la console pour avoir des informations essentielles
+- inspecter les objets avec `head()` et `tail()` (affiche les 6 premières et 
+dernières lignes)
+- utilisation de `summary`
+- utilisation de `str()` pour voir la structure des objets. Si la structure 
+est trop complexe, utiliser `str(x, max.level = <2 ou 3>)`
+- utilisation de la commande `plot()`. **Attention, vous allez manipuler des
+objets spatiaux lourds : ne lancez pas `plot()` sur les objets en entier pour ne
+pas faire planter R. Lancez `plot()` sur quelques lignes seulement : 
+`plot(objet[1:10, ])`**
+
 # Etape 1. Téléchargement de données spatiales
 
 ## 1.1 Données vectorielles : polygones de distributions d’espèces IUCN
 
-Allez sur le site de l’IUCN : [www.iucnredlist.org](www.iucnredlist.org), et créez-vous un compte dans la page **Login/Register >>> REGISTER FOR AN ACCOUNT** (en bas). Connectez-vous ensuite avec ce compte sur le site.
+Allez sur le site de l’IUCN : [https://www.iucnredlist.org](https://www.iucnredlist.org), et créez-vous un compte dans la page **Login/Register >>> REGISTER FOR AN ACCOUNT** (en bas). Connectez-vous ensuite avec ce compte sur le site.
 
 Visitez ensuite la page **[Resources and Publications](https://www.iucnredlist.org/resources/grid)**, qui permet de télécharger l’ensemble des données et publications de l’IUCN. Pour le moment, se rendre sur la page **[Spatial Data Download](https://www.iucnredlist.org/resources/spatial-data-download)**. 
 
@@ -31,11 +48,27 @@ Allez sur le site de **Natural Earth** : [www.naturalearthdata.com](https://www.
 
 ## 1.3 Données raster : climatos globales WorldClim
 
-Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org) Sur ce site, vous pouvez  télécharger la version 2.1 du jeu de données WorldClim. Ce jeu de données correspond à des données de moyennes mensuelles interpolées sur la base de milliers de stations météorologiques distribuées dans le monde entier. Certaines zones étant moins bien couvertes que d’autres en termes de stations météo, leur qualité est moins importante, ce qui est à prendre en compte quand vous analysez ces données. Dans la version 2.1 de WorldClim, des données satellites ont été utilisées pour corriger les interpolations, notamment dans les zones à faible densité de stations météorologiques. 
+Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org)
+Sur ce site, vous pouvez  télécharger la version 2.1 du jeu de données 
+WorldClim. Ce jeu de données correspond à des données de moyennes mensuelles 
+interpolées sur la base de milliers de stations météorologiques distribuées dans
+le monde entier. Certaines zones étant moins bien couvertes que d’autres en 
+termes de stations météo, leur qualité est moins importante, ce qui est à 
+prendre en compte quand vous analysez ces données. Dans la version 2.1 de 
+WorldClim, des données satellites ont été utilisées pour corriger 
+les interpolations, notamment dans les zones à faible densité de stations
+météorologiques. 
 
 ![](img/wc1.png)
  
-**Téléchargez les données historiques de température moyenne à la résolution la plus grossière (10 minutes).** Une fois que le fichier .zip contenant les climatos de températures moyennes mensuelles est sur votre ordinateur, extrayez son contenu dans votre répertoire de données pour R. Attention : il est important que ces fichiers soient dans un sous-dossier contenant uniquement les rasters (par exemple un dossier nommé « worldclim data »).
+**Téléchargez les données climatiques historiques. Prenez la température 
+moyenne à la résolution la plus grossière (10 minutes).** Une fois que le
+fichier .zip contenant les climatos de températures moyennes mensuelles est 
+sur votre ordinateur, extrayez son contenu dans votre répertoire de données 
+pour R. **Attention** : il est important que ces fichiers soient dans un 
+sous-dossier (par exemple un dossier 
+nommé « worldclim data ») contenant uniquement les rasters et rien d'autre, 
+pas même le fichier zip.
 
 
 # Etape 2 : Lecture des données sous R
@@ -44,16 +77,6 @@ Allez sur le site WorldClim : [www.worldclim.org.](https://www.worldclim.org) Su
 ### 2.1.1 Avec le package terra
 
 Dans R, chargez le package terra, puis lisez le fichier polygones de distributions IUCN avec la commande `vect()`. Inspectez votre objet spatial.
-
-
-Pour cela, inspectez votre objet spatial :
-
--	Affichez le dans la console
-
--	Utilisez `count()` du package R `plyr` pour compter le nombre de répétitions de chaque élément dans une colonne (familles, espèces...)
-
--	Utilisez la fonction `plot()` sur votre objet 
-
 
 
 Questions :
@@ -66,50 +89,99 @@ Questions :
 
 -	Combien y a-t-il d’espèces ?
 
+- Pourquoi le nombre d'espèces n'est pas égal au nombre de polygones ?
+
 -	Quelle est la famille la plus diversifiée d’urodèles ?
 
--	Où se trouvent les amphibiens urodèles ?
+-	Où se trouvent les amphibiens urodèles ? **(N'affichez que les 100 premières 
+lignes pour ne pas faire planter votre R - ce sera suffisant pour répondre à
+la quesiton)** 
 
+Note :
+-	Utilisez `count()` du package R `plyr` pour compter le nombre de répétitions
+de chaque élément dans une colonne (familles, espèces...)
 
+- Compter le nombre de polygones est suffisant pour voir quelle est la famille 
+la plus diversifiée d'urodèles, même si certaines espèces ont plusieurs 
+polygones
 
 ### 2.1.2 Avec le package sf
 
-Chargez le package terra, puis lisez le fichier polygones de distribution IUCN avec la commande `st_read()`. Inspectez votre objet sf.
+Chargez le package sf, puis lisez le fichier polygones de distribution IUCN avec la commande `st_read()`. Inspectez votre objet sf.
 
 Questions :
 
--	Comment sont réparties géographiquement les familles majoritaires d’urodèles ?
-Pour cela, utilisez la fonction plot, mais n’affichez que la colonne « family » : par exemple, `plot(iucn_sf["family"])`
+-	Où sont réparties les AMBYSTOMATIDAE ?
+Quand on utilise la fonction plot avec le package sf,
+il faut faire attention à n'afficher qu'une colonne dans le tableau, sinon il
+fait plein de figures en même temps pour rien. Par exemple, ici, n'affichez que
+la colonne « family ».
 
-
-Vous pouvez également n’afficher qu’une seule famille en utilisant la fonction `which` : 
+Vous pouvez utiliser la fonction `which()` pour n'afficher qu'une famille : 
 
 ```
 plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), 
              "family"])
 ```
 
+![](img/ambysto.png)
+
+*Un petit Ambystoma gracile*
+
 ### 2.2 Données vectorielles : limites des continents
 
 Chargez les limites des continents avec le package sf et faites une carte avec la distribution des salamandridae et les limites des continents. 
 Pour cela, procédez en deux étapes :
 
-1. Représentez (fonction `plot()`) les limites Ajoutez les axes (argument `axes`), ainsi qu’un graticule (argument `graticule`).Ajouter l’argument `reset = FALSE` lorsque vous lancez plot sur les limites des continents, ce qui permettra d'ajouter les salamandridae par-dessus en suite.
+1. Représentez (fonction `plot()`, rappel avec sf : n'affichez qu'une colonne)
+les limites Ajoutez les axes (argument
+`axes`), ainsi qu’un graticule (argument `graticule`). Ajouter l’argument 
+`reset = FALSE` lorsque vous lancez plot sur les limites des continents, 
+ce qui permettra d'ajouter les salamandridae par-dessus en suite. 
 
-2. Représentez les salamandridae en ajoutant l'argument `add = TRUE`.
+2. Représentez les ambystomatidae en ajoutant l'argument `add = TRUE`.
 
-Une fois que vous avez effectué cette première représentation graphique avec les fonctions de base de R, vous allez faire cette fois-ci une carte en illustrant en couleur les différentes familles, mais cette fois-ci avec ggplot2, en vous inspirant du code ci-dessous :
+Une fois que vous avez effectué cette première représentation graphique avec 
+les fonctions de base de R, vous allez faire cette fois-ci une carte en 
+illustrant en couleur les différentes familles, mais cette fois-ci avec ggplot2,
+en vous inspirant du code ci-dessous :
 
-**Attention, si votre ordinateur n'est pas très puissant, la commande ci-dessous peut prendre vraiment beaucoup de temps à s'exécuter. C'est la difficulté avec le SIG, ce sont souvent des fichiers très lourds à afficher. Si vous pensez que votre ordinateur est trop faible pour faire la carte, dans ce cas ne faites que la carte des salamandridae.**
+**Attention, si votre ordinateur n'est pas très puissant, la commande 
+ci-dessous peut prendre du temps à s'exécuter. 
+C'est la difficulté avec le SIG, ce sont souvent des fichiers très lourds à
+afficher. Deux options s'offrent à vous dans ce cas : (1) découper le jeu de 
+données en petite parties ; (2) écrire les images sur le disque plutôt que de
+les afficher dans la fenêtre de plot**
+
+Si votre ordinateur galère, choisissez une famille plus petite encore : PROTEIDAE 
 
 ```
 library(ggplot2)
+ambysto <- iucn_sf[iucn_sf$family == "AMBYSTOMATIDAE", ]
 ggplot() +
   geom_sf(data = continents) +
-  geom_sf(data = iucn_sf, aes(fill = family))
+  geom_sf(data = ambysto, aes(fill = sci_name),
+          alpha = .2) +
+  guides(fill="none")
 ```
 
-Comme vous pouvez le noter, les objets de type "sf" sont pris en charge nativement par ggplot2 avec `geom_sf()`, ce qui est très utile quand on fait de la cartographie sur R, surtout avec des données quantitatives.
+Comme vous pouvez le noter, les objets de type "sf" sont pris en charge
+nativement par ggplot2 avec `geom_sf()`, ce qui est très utile quand on fait 
+de la cartographie sur R, surtout avec des données quantitatives.
+
+Si vous voulez une carte interactive, pour zoomer, dézoomer, passer la souris
+sur les polygones, vous pouvez utiliser plotly :
+
+```
+library(plotly)
+p <- ggplot() +
+  geom_sf(data = continents) +
+  geom_sf(data = ambysto, aes(fill = sci_name),
+          alpha = .2) +
+  guides(fill="none")
+ggplotly(p)
+```
+
 
 ### 2.3 Données raster : climatologies WorldClim
 Chargez le raster de température moyenne du mois de janvier avec la commande `rast()`.
@@ -120,15 +192,20 @@ Questions :
 
 - Quel est le système de coordonnées ?
 
--	Quelle sont les températures moyennes de janvier les plus élevées et les plus froides sur la Terre, et où sont-elles situées ?
+-	Quelle sont les températures moyennes de janvier les plus élevées et les plus
+froides sur la Terre, et où sont-elles situées ?
 
-Pour répondre à ces questions, inspectez votre raster en tapant son nom dans la console. Affichez-le avec `plot()`.
+Pour répondre à ces questions, inspectez votre raster en tapant son nom dans 
+la console. Affichez-le avec `plot()`.
 
-Chargez maintenant l’ensembles des rasters de températures moyennes mensuelles avec la commande `rast()` : pour cela il faut donner à R à la fois le dossier dans lequel se trouvent les fichiers, et les noms de fichiers. Utilisez `list.files()` qui liste les fichiers d'un répertoire :
+Chargez maintenant l’ensembles des rasters de températures moyennes mensuelles
+avec la commande `rast()` : pour cela il faut donner à R à la fois le dossier 
+dans lequel se trouvent les fichiers, et les noms de fichiers. 
+Utilisez `list.files()` qui liste les fichiers d'un répertoire :
 
 ```
-worldclim <- stack(paste0("./data/WorldClim data/", 
-                          list.files("./data/WorldClim data/")))
+worldclim <- stack(paste0("data/WorldClim data/", 
+                          list.files("data/WorldClim data/")))
 ```
 
 
@@ -199,6 +276,8 @@ iucn_poly_par_sp <- iucn_sf %>%
 # Le grouper par rapport à la colonne sci_name (= grouper par espèce)
 # Réaliser l'union des polygones (st_union(geometry)) et obtenir comme
 # résultat un tableau avec une seule ligne par espèce (summarise())
+# Le temps de calcul est long car l'opération géométrique d'union sur des 
+# polygones complexes est longue : soyez patients
 
 # 2. Ajouter une colonne numérique avec la valeur '1' pour chaque
 # espèce. Cette astuce nous permettra de calculer la somme dans chaque 
@@ -232,48 +311,28 @@ Questions :
  
 # Etape 4 : faire une belle carte
 
-Pour finir, nous allons faire une belle carte de la richesse spécifique des urodèles. Pour cela, nous allons projeter nos cartes suivant une projection Lambert azimuthal equal-area (LAEA). Il s’agit d’une projection de la sphère terrestre sur un disque, qui respecte les surfaces mais pas les angles. 
-
-Attention : la projection des vecteurs se fait facilement par « simple » calcul des coordonnées. En revanche, la projection des rasters résulte en une grille modifiée avec des nombres de lignes et de colonnes différentes, et donc requière de recalculer les valeurs dans les pixels. Il faut donc être prudent lors de la projection d’un raster car cela modifie les valeurs : en général, quand on travaille avec des jeux de données différents, il vaut mieux projeter les données vectorielles vers le système de coordonnées du raster plutôt que l’inverse. Ici, nous le ferons pour l’illustration. 
-
-Nous allons tout d’abord réduire la zone d’étude à l’hémisphère nord avec la commande `crop` :
-
-On définit l’étendue de l’hémisphère nord avec 
-```
-e <- ext(-180, 180, 0, 90)
-```
-
-Puis on recadre notre zone :
+Voici un exemple de code pour faire une belle carte :
 
 ```
-richness <- crop(richness, e)
-```
+# Reprojeter les cartes en Mollweide
+mollweide_proj <- "+proj=moll +lon_0=0 +datum=WGS84"
 
-Ensuite, on applique une transformation LAEA sur le raster. Pour cela, nous allons devoir recalculer les valeurs dans les pixels. Etant donné que ce sont des données numériques, nous pouvons appliquer une interpolation bilinéaire (ne faites jamais ça sur des données catégorielles type land-cover).
+richness.moll <- project(richness, mollweide_proj, method = "bilinear")
 
+# Reprojeter les limites des continents dans Mollweide
+continents.moll <- st_transform(continents, crs = mollweide_proj)
 
-```
+# On transforme le raster en data.frame pour ggplot2
+richness_df <- as.data.frame(richness.moll, xy = TRUE, na.rm = TRUE)
 
-# Projection
-richness.laea <- project(richness,
-                         "+proj=laea +lat_0=90 +lon_0=0",
-                         method = "bilinear")
-# Appliquons la même projection sur le vecteur des limites des continents :
-continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
-```
+p <- ggplot() +
+  geom_tile(data = richness_df, aes(x = x, y = y, fill = occurrence)) +  
+  geom_sf(data = continents.moll, color = "black", fill = NA) +        
+  scale_fill_viridis_c(option = "magma", na.value = "transparent") + 
+  coord_sf(crs = mollweide_proj) +  
+  theme_minimal() + xlab("") + ylab("")
 
-
-Enfin, nous allons créer notre carte en utilisant le package « tmap », qui permet de faire plusieurs couches différentes puis de tout assembler en une belle carte.
-
-```
-library(tmap)
-richness.map <- tm_shape(richness.laea) +
-                tm_raster() 
-
-continents.map <- tm_shape(continents.laea) +
-                  tm_lines()
-
-richness.map + continents.map
+ggplotly(p)
 ```
 
 

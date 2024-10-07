@@ -31,12 +31,12 @@ Questions :
 
 -	Combien y a-t-il de polygones ?
 
-**910**
+**`r nrow(iucn_t)`**
 
 
 - Combien y a-t-il de colonnes dans le tableau qui décrit les polygones ? 
 
-**28**
+**`r ncol(iucn_t)`**
 
 
 
@@ -50,24 +50,39 @@ iucn_t$sci_name[1:25] # Affichons uniquement les 25 premiers éléments
 length(unique(iucn_t$sci_name))
 ```
 
-**Il y a 708 espèces.** 
+**Il y a `r length(unique(iucn_t$sci_name))` espèces.** 
 
+- Pourquoi le nombre d'espèces n'est pas égal au nombre de polygones ?
 
+Parce que certaines d'espèces ont plusieurs polygones dans le jeu de données
+(e.g. aire native, aire non native, aire éteinte, etc.)
 
 
 -	Quelle est la famille la plus diversifiée d’urodèles ?
 
 ```{r}
-plyr::count(iucn_t$family)
+# Version tidyverse
+library(tidyverse)
+iucn_t %>%
+  as.data.frame %>%
+  group_by(family) %>%
+  summarise(n_unique = n_distinct(sci_name))
+
+# Version base R
+# On découpe le vecteur des espèces par famille
+sp_par_famille <- split(iucn_t$sci_name, iucn_t$family) 
+# On calcule le nombre de noms uniques d'espèces dans chaque famille
+sapply(sp_par_famille, function(x) length(unique(x)))
 ```
 
 **Les plethodontidae**
 
 -	Où se trouvent les espèces d’amphibiens urodèles ?
 ```{r}
-plot(iucn_t)
+plot(iucn_t[1:100, ])
 ```
 
+Elles se trouvent essentiellement dans l'hémisphère nord.
 
 ### 2.1.2 Avec le package sf
 
@@ -76,20 +91,13 @@ library(sf)
 
 iucn_sf <- st_read("./data/CAUDATA.shp")
 iucn_sf
-plot(iucn_sf["family"])
-plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"), 
-             "family"])
-plot(iucn_sf[which(iucn_sf$family == "SALAMANDRIDAE"), 
-             "family"])
 plot(iucn_sf[which(iucn_sf$family == "AMBYSTOMATIDAE"), 
-             "family"])
-plot(iucn_sf[which(iucn_sf$family == "HYNOBIIDAE"), 
              "family"])
 ```
 
 -	Comment sont réparties géographiquement les familles majoritaires d’urodèles ?
 
-**Les Plethodontidae et Ambystomatidae sont des familles néarctiques (Amérique du Nord). Les Salamandridae sont holarctiques (hémisphère nord en entier). Les Hynobiidae sont plutôt paléarctiques à orientales (Europe-Asie).**
+**Les Ambystomatidae sont une famille néarctique (Amérique du Nord).**
 
 
 
@@ -101,16 +109,27 @@ continents <- st_read("./data/ne_50m_coastline.shp")
 plot(continents[1], col = grey(.5),
      reset = FALSE, graticule = TRUE, axes = TRUE)
 
-plot(iucn_sf[which(iucn_sf$family == "PLETHODONTIDAE"), 
+plot(iucn_sf[which(iucn_sf$family == "AMBYSTOMATIDAE"), 
              "family"], add = TRUE)
 ```
 
 ```{r}
 library(ggplot2)
+ambysto <- iucn_sf[iucn_sf$family == "AMBYSTOMATIDAE", ]
 ggplot() +
   geom_sf(data = continents) +
-  geom_sf(data = iucn_sf, aes(fill = family),
-          alpha = .2)
+  geom_sf(data = ambysto, aes(fill = sci_name),
+          alpha = .2) +
+  guides(fill="none")
+
+p <- ggplot() +
+  geom_sf(data = continents) +
+  geom_sf(data = ambysto, aes(fill = sci_name),
+          alpha = .2) +
+  guides(fill="none")
+
+library(plotly)
+ggplotly(p)
 ```
 
 ### 2.3 Données raster : climatologies WorldClim
@@ -122,7 +141,7 @@ jan
 
 -	Quelle est la résolution du raster ?
 
-**0.167°**
+**`r paste(round(res(jan), 3), collapse = "° x ")`°**
 
 - Quel est le système de coordonnées ?
 
@@ -196,6 +215,8 @@ iucn_poly_par_sp <- iucn_sf %>%
 # Le grouper par rapport à la colonne sci_name (= grouper par espèce)
 # Réaliser l'union des polygones (st_union(geometry)) et obtenir comme
 # résultat un tableau avec une seule ligne par espèce (summarise())
+# Le temps de calcul est long car l'opération géométrique d'union sur des 
+# polygones complexes est longue : soyez patients
 
 # 2. Ajouter une colonne numérique avec la valeur '1' pour chaque
 # espèce. Cette astuce nous permettra de calculer la somme dans chaque 
@@ -215,6 +236,7 @@ richness <- rasterize(iucn_poly_par_sp,
                       field = "occurrence",
                       fun = sum)
 
+
 plot(richness)
 ```
 
@@ -222,7 +244,7 @@ Questions :
 
 -	Où est la richesse la plus élevée ?
 
-**Au Nord-Est de l'Amérique du Nord**
+**A l'Est de l'Amérique du Nord**
 
 ```{r}
 richness.urodeles <- values(richness)
@@ -248,26 +270,17 @@ Il s'agit de Salamandrella keyserlingii, une salamandre de Sibérie qui peut hib
 # Etape 4 : faire une belle carte
 
 ```{r}
-e <- ext(-180, 180, 0, 90)
-richness <- crop(richness, 
-                 e)
+# On transforme le raster en data.frame pour ggplot2
+richness_df <- as.data.frame(richness, xy = TRUE, na.rm = TRUE)
 
-# Projection suivant Lambert Azimutal Equal Area
-richness.laea <- project(richness,
-                         "+proj=laea +lat_0=90 +lon_0=0",
-                         method = "bilinear")
-# Appliquons la même projection sur le vecteur des limites des continents :
-continents.laea <- st_transform(continents, crs = "+proj=laea +lat_0=90 +lon_0=0")
+p <- ggplot() +
+  geom_tile(data = richness_df, aes(x = x, y = y, fill = occurrence)) +  
+  geom_sf(data = continents, color = "black", fill = NA) +        
+  scale_fill_viridis_c(option = "magma", na.value = "transparent") + 
+  coord_sf(crs = mollweide_proj) +  
+  theme_minimal() + xlab("") + ylab("")
 
-library(tmap)
-richness.map <- tm_shape(richness.laea) +
-                tm_raster() 
-
-continents.map <- tm_shape(continents.laea) +
-                  tm_lines()
-
-
-richness.map + continents.map 
+ggplotly(p)
 ```
 
 
