@@ -311,25 +311,16 @@ Questions :
  
 # Etape 4 : faire une belle carte
 
-Voici un exemple de code pour faire une belle carte :
+Voici un exemple de code pour faire une belle carte interactive :
 
 ```
-# Reprojeter les cartes en Mollweide
-mollweide_proj <- "+proj=moll +lon_0=0 +datum=WGS84"
-
-richness.moll <- project(richness, mollweide_proj, method = "bilinear")
-
-# Reprojeter les limites des continents dans Mollweide
-continents.moll <- st_transform(continents, crs = mollweide_proj)
-
 # On transforme le raster en data.frame pour ggplot2
-richness_df <- as.data.frame(richness.moll, xy = TRUE, na.rm = TRUE)
+richness_df <- as.data.frame(richness, xy = TRUE, na.rm = TRUE)
 
 p <- ggplot() +
   geom_tile(data = richness_df, aes(x = x, y = y, fill = occurrence)) +  
-  geom_sf(data = continents.moll, color = "black", fill = NA) +        
-  scale_fill_viridis_c(option = "magma", na.value = "transparent") + 
-  coord_sf(crs = mollweide_proj) +  
+  geom_sf(data = continents, color = "black", fill = NA) +        
+  scale_fill_viridis_c(option = "magma", na.value = "transparent") +  
   theme_minimal() + xlab("") + ylab("")
 
 ggplotly(p)

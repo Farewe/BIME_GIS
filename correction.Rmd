@@ -257,7 +257,7 @@ abline(v = 27)
 
 -	Que pouvez-vous déduire sur les limites de température des urodèles ? 
 
-**Les distributions des ambystomates sont généralement comprises dans une gamme de température moyenne annuelle
+**Les distributions des amphibiens sont généralement comprises dans une gamme de température moyenne annuelle
 comprise entre 0°C et 20°C.**
 
 -	Que remarquez-vous de particulier sur le graphe température/richesse ?
@@ -276,8 +276,7 @@ richness_df <- as.data.frame(richness, xy = TRUE, na.rm = TRUE)
 p <- ggplot() +
   geom_tile(data = richness_df, aes(x = x, y = y, fill = occurrence)) +  
   geom_sf(data = continents, color = "black", fill = NA) +        
-  scale_fill_viridis_c(option = "magma", na.value = "transparent") + 
-  coord_sf(crs = mollweide_proj) +  
+  scale_fill_viridis_c(option = "magma", na.value = "transparent") +  
   theme_minimal() + xlab("") + ylab("")
 
 ggplotly(p)
